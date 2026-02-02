@@ -12,11 +12,11 @@ using AddressChain = ConnectorLib.Memory.AddressChain<ConnectorLib.Inject.Inject
 using ConnectorType = CrowdControl.Common.ConnectorType;
 using Log = CrowdControl.Common.Log;
 
-namespace CrowdControl.Games.Packs.tomb123
+namespace CrowdControl.Games.Packs.Tomb123
 {
 
     [SuppressMessage("ReSharper", "StringLiteralTypo")]
-    public class tomb123 : InjectEffectPack
+    public class Tomb123 : InjectEffectPack
     {
         private readonly string _mainGame = "tomb123.exe";
         private readonly string _tomb1Dll = "tomb1.dll";
@@ -203,9 +203,9 @@ namespace CrowdControl.Games.Packs.tomb123
         #endregion
 
 
-        public tomb123(UserRecord player, Func<CrowdControlBlock, bool> responseHandler, Action<object> statusUpdateHandler) : base(player, responseHandler, statusUpdateHandler)
+        public Tomb123(UserRecord player, Func<CrowdControlBlock, bool> responseHandler, Action<object> statusUpdateHandler) : base(player, responseHandler, statusUpdateHandler)
         {
-            VersionProfiles = [new("tomb123", InitGame, DeinitGame)];
+            VersionProfiles = [new("Tomb123", InitGame, DeinitGame)];
         }
 
         private void InitGame()
@@ -227,7 +227,7 @@ namespace CrowdControl.Games.Packs.tomb123
 
         }
 
-        public override Game Game { get; } = new("Tomb Raider I-III Remastered", "tomb123", "PC", ConnectorType.InjectConnector);
+        public override Game Game { get; } = new("Tomb Raider I-III Remastered", "Tomb123", "PC", ConnectorType.InjectConnector);
 
         public enum GameEffect
         {
