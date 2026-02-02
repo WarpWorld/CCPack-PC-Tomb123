@@ -4,6 +4,7 @@ using ConnectorLib.Memory;
 using CrowdControl.Common;
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -47,7 +48,7 @@ namespace CrowdControl.Games.Packs.Tomb123
         private System.Threading.Timer? _gameStatusTimer;
         private CurrentGame? _lastReportedGame;
         private readonly object _statusLock = new();
-        private readonly Dictionary<GameEffect, HashSet<CurrentGame>> _effectGameRestrictions = new()
+        private static readonly Dictionary<GameEffect, HashSet<CurrentGame>> _effectGameRestrictions = new()
         {
             { GameEffect.tr1GiveMagnums, new HashSet<CurrentGame> { CurrentGame.TR1 } },
             { GameEffect.tr1TakeMagnums, new HashSet<CurrentGame> { CurrentGame.TR1 } },
@@ -101,6 +102,61 @@ namespace CrowdControl.Games.Packs.Tomb123
             { GameEffect.darkLara, new HashSet<CurrentGame> { CurrentGame.TR1, CurrentGame.TR2 } },
         };
         private readonly Dictionary<GameEffect, Effect> _effectById = new();
+        private readonly Dictionary<GameEffect, string> _effectIdByGameEffect = new();
+        private static readonly HashSet<string> _gameEffectIds = new(Enum.GetNames(typeof(GameEffect)));
+        private static readonly Dictionary<string, GameEffect> _effectNameToId = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Dark Lara", GameEffect.darkLara },
+            { "Give Magnums", GameEffect.tr1GiveMagnums },
+            { "Take Magnums", GameEffect.tr1TakeMagnums },
+            { "Give Magnum Ammo", GameEffect.tr1GiveMagnumAmmo },
+            { "Take Magnum Ammo", GameEffect.tr1TakeMagnumAmmo },
+            { "Double Magnum Damage", GameEffect.tr1DoubleMagnumDamage },
+            { "Disable Magnum Damage", GameEffect.tr1DisableMagnumDamage },
+            { "Give Automatic Pistols", GameEffect.giveAutoPistols },
+            { "Take Automatic Pistols", GameEffect.takeAutoPistols },
+            { "Give M16", GameEffect.giveM16 },
+            { "Take M16", GameEffect.takeM16 },
+            { "Give Automatic Pistol Ammo", GameEffect.giveAutoPistolAmmo },
+            { "Take Automatic Pistol Ammo", GameEffect.takeAutoPistolAmmo },
+            { "Give M16 Ammo", GameEffect.giveM16Ammo },
+            { "Take M16 Ammo", GameEffect.takeM16Ammo },
+            { "Double M16 Damage", GameEffect.doubleM16Damage },
+            { "Disable M16 Damage", GameEffect.disableM16Damage },
+            { "Double Automatic Pistols Damage", GameEffect.doubleAutoPistolsDamage },
+            { "Disable Automatic Pistols Damage", GameEffect.disableAutoPistolsDamage },
+            { "Give Desert Eagle", GameEffect.giveDesertEagle },
+            { "Take Desert Eagle", GameEffect.takeDesertEagle },
+            { "Give MP5", GameEffect.giveMP5 },
+            { "Take MP5", GameEffect.takeMP5 },
+            { "Give Rocket Launcher", GameEffect.giveRocketLauncher },
+            { "Take Rocket Launcher", GameEffect.takeRocketLauncher },
+            { "Give MP5 Ammo", GameEffect.giveMP5Ammo },
+            { "Take MP5 Ammo", GameEffect.takeMP5Ammo },
+            { "Give Desert Eagle Ammo", GameEffect.giveDeagleAmmo },
+            { "Take Desert Eagle Ammo", GameEffect.takeDeagleAmmo },
+            { "Give Rockets", GameEffect.giveRocketAmmo },
+            { "Take Rockets", GameEffect.takeRocketAmmo },
+            { "Double MP5 Damage", GameEffect.doubleMP5Damage },
+            { "Disable MP5 Damage", GameEffect.disableMP5Damage },
+            { "Double Desert Eagle Damage", GameEffect.doubleDeagleDamage },
+            { "Disable Desert Eagle Damage", GameEffect.disableDeagleDamage },
+            { "Disable Stamina", GameEffect.disableStamina },
+            { "Half Stamina", GameEffect.halfStamina },
+            { "Infinite Stamina", GameEffect.infiniteStamina },
+            { "Give Flare", GameEffect.giveFlare },
+            { "Take Flare", GameEffect.takeFlare },
+            { "Give Grenade Launcher", GameEffect.giveGrenadeLauncher },
+            { "Take Grenade Launcher", GameEffect.takeGrenadeLauncher },
+            { "Give Harpoon Gun", GameEffect.giveHarpoonGun },
+            { "Take Harpoon Gun", GameEffect.takeHarpoonGun },
+            { "Give Harpoons", GameEffect.giveHarpoonAmmo },
+            { "Take Harpoons", GameEffect.takeHarpoonAmmo },
+            { "Give Grenades", GameEffect.giveGrenadeAmmo },
+            { "Take Grenades", GameEffect.takeGrenadeAmmo },
+            { "Double Harpoon Damage", GameEffect.doubleHarpoonDamage },
+            { "Disable Harpoon Damage", GameEffect.disableHarpoonDamage },
+        };
 
         #region Global Values
         private const uint _currentGameOffset = 0x2F35F0;
@@ -124,36 +180,36 @@ namespace CrowdControl.Games.Packs.Tomb123
         #endregion
 
         #region TR1 Values
-        private const uint _tr1BackpackSizeOffset = 0xE2ABC; 
-        private const uint _tr1BackpackSlotCountsOffset = 0xF8DD8; 
+        private const uint _tr1BackpackSizeOffset = 0xE2ABC;
+        private const uint _tr1BackpackSlotCountsOffset = 0xF8DD8;
         private readonly List<uint> _tr1BackpackSlotOffsets =
         [
             0xF8D20,0xF8D28,0xF8D30,0xF8D38,0xF8D40,0xF8D48,0xF8D50
-        ]; 
+        ];
         private readonly List<BackpackItem> _tr1BackpackItemsWithAmmo =
         [
             BackpackItem.TR1_Shotgun, BackpackItem.TR1_Uzis, BackpackItem.TR1_Magnums
         ];
         private readonly List<BackpackItem> _tr1BackpackEntityOrder =
         [
-            BackpackItem.TR1_Compass, BackpackItem.TR1_Pistols, BackpackItem.TR1_Shotgun, BackpackItem.TR1_Magnums, 
+            BackpackItem.TR1_Compass, BackpackItem.TR1_Pistols, BackpackItem.TR1_Shotgun, BackpackItem.TR1_Magnums,
             BackpackItem.TR1_Uzis, BackpackItem.TR1_LargeMedi, BackpackItem.TR1_SmallMedi
         ];
         private const uint _tr1MagnumAmmoOffset = 0x310FC8;
-        private const uint _tr1UziAmmoOffset = 0x310FD0; 
-        private const uint _tr1ShotgunAmmoOffset = 0x310FD8; 
+        private const uint _tr1UziAmmoOffset = 0x310FD0;
+        private const uint _tr1ShotgunAmmoOffset = 0x310FD8;
         private const uint _tr1LaraOffset = 0x311030;
         private const uint _tr1OxygenOffset = 0x310E96;
         private const uint _tr1EquippedWeapon = 0x310E86;
-        private const uint _tr1LaraStateByte = 0x310E8C;         
+        private const uint _tr1LaraStateByte = 0x310E8C;
         private const uint _tr1RoomCountOffset = 0x3F2030;
         private const uint _tr1RoomPtrOffset = 0x3F2168;
         private Dictionary<int, byte> _floodedRoomStateOriginal = [];
         private List<OffsetAddressChain<InjectConnector>> tr1MaxHPDeclarations = [];
-        private const uint _tr1MaxO2Offset = 0x27B94; 
-        private const uint _tr1PistolDamageOffset = 0xF9700; 
-        private const uint _tr1MagnumDamageOffset = 0xF9730; 
-        private const uint _tr1UziDamageOffset = 0xF9760; 
+        private const uint _tr1MaxO2Offset = 0x27B94;
+        private const uint _tr1PistolDamageOffset = 0xF9700;
+        private const uint _tr1MagnumDamageOffset = 0xF9730;
+        private const uint _tr1UziDamageOffset = 0xF9760;
         private const uint _tr1ShotgunDamageOffset = 0xF9790;
         private const uint _tr1FallDamageOffset = 0x24BCD;
         private const uint _tr1LevelCompletedFlagOffset = 0xFD750;
@@ -191,11 +247,11 @@ namespace CrowdControl.Games.Packs.Tomb123
         private const uint _tr2RoomPtrOffset = 0x427360;
         private const uint _tr2LaraOffset = 0x346170;
         private const uint _tr2OxygenOffset = 0x345FD6;
-        private const uint _tr2PistolDamageOffset = 0x12EA30; 
-        private const uint _tr2AutomaticPistolsDamageOffset = 0x12EA60; 
-        private const uint _tr2UziDamageOffset = 0x12EA90; 
-        private const uint _tr2ShotgunDamageOffset = 0x12EAC0; 
-        private const uint _tr2HarpoonGunDamageOffset = 0x12EB50; 
+        private const uint _tr2PistolDamageOffset = 0x12EA30;
+        private const uint _tr2AutomaticPistolsDamageOffset = 0x12EA60;
+        private const uint _tr2UziDamageOffset = 0x12EA90;
+        private const uint _tr2ShotgunDamageOffset = 0x12EAC0;
+        private const uint _tr2HarpoonGunDamageOffset = 0x12EB50;
         private const uint _tr2GrenadeLauncherDamageOffset = 0x12EB20; //doesnt work
         private const uint _tr2M16DamageOffset = 0x12EAF0;
         private const uint _tr2FallDamageOffset = 0x43D99;
@@ -223,7 +279,7 @@ namespace CrowdControl.Games.Packs.Tomb123
         private readonly List<BackpackItem> _tr3BackpackEntityOrder =
         [
             BackpackItem.TR3_Compass, BackpackItem.TR3_Pistols, BackpackItem.TR3_Shotgun, BackpackItem.TR3_DesertEagle,
-            BackpackItem.TR3_Uzis, BackpackItem.TR3_MP5, BackpackItem.TR3_RocketLauncher, BackpackItem.TR3_GrenadeLauncher, 
+            BackpackItem.TR3_Uzis, BackpackItem.TR3_MP5, BackpackItem.TR3_RocketLauncher, BackpackItem.TR3_GrenadeLauncher,
             BackpackItem.TR3_HarpoonGun, BackpackItem.TR3_Flares, BackpackItem.TR3_LargeMedi, BackpackItem.TR3_SmallMedi
         ];
         private const uint _tr3DeagleAmmoOffset = 0x3A2008;
@@ -323,20 +379,20 @@ namespace CrowdControl.Games.Packs.Tomb123
             takeUzis,
             tr1GiveMagnums,
             tr1TakeMagnums,
-            giveAutoPistols, 
-            takeAutoPistols, 
-            giveHarpoonGun, 
-            takeHarpoonGun, 
-            giveGrenadeLauncher, 
-            takeGrenadeLauncher, 
-            giveM16, 
+            giveAutoPistols,
+            takeAutoPistols,
+            giveHarpoonGun,
+            takeHarpoonGun,
+            giveGrenadeLauncher,
+            takeGrenadeLauncher,
+            giveM16,
             takeM16,
-            giveDesertEagle, 
-            takeDesertEagle, 
-            giveMP5, 
+            giveDesertEagle,
+            takeDesertEagle,
+            giveMP5,
             takeMP5,
-            giveRocketLauncher, 
-            takeRocketLauncher, 
+            giveRocketLauncher,
+            takeRocketLauncher,
             giveSmallMedi,
             takeSmallMedi,
             giveLargeMedi,
@@ -385,16 +441,16 @@ namespace CrowdControl.Games.Packs.Tomb123
             disableShotgunDamage,
             doubleUziDamage,
             disableUziDamage,
-            doubleHarpoonDamage, 
+            doubleHarpoonDamage,
             disableHarpoonDamage,
-            doubleM16Damage, 
+            doubleM16Damage,
             disableM16Damage,
-            doubleAutoPistolsDamage, 
+            doubleAutoPistolsDamage,
             disableAutoPistolsDamage,
-            doubleDeagleDamage, 
-            disableDeagleDamage, 
-            doubleMP5Damage, 
-            disableMP5Damage, 
+            doubleDeagleDamage,
+            disableDeagleDamage,
+            doubleMP5Damage,
+            disableMP5Damage,
             halfFallDamage,
             doubleFallDamage,
             disableStamina,
@@ -408,143 +464,155 @@ namespace CrowdControl.Games.Packs.Tomb123
         private const string MeterEffects = "Meters";
         private const string AmmoEffects = "Ammo";
         private const string OtherEffects = "Other";
+        private const string CategoryTR1 = "TR1";
+        private const string CategoryTR2 = "TR2";
+        private const string CategoryTR3 = "TR3";
+        private static readonly string[] AllGameCategories = [CategoryTR1, CategoryTR2, CategoryTR3];
+
+        private static string[] BuildCategories(GameEffect effect, string baseCategory)
+        {
+            if (_effectGameRestrictions.TryGetValue(effect, out HashSet<CurrentGame>? games))
+                return [baseCategory, ..games.OrderBy(game => game).Select(game => game.ToString())];
+
+            return [baseCategory, ..AllGameCategories];
+        }
 
         public override EffectList Effects { get; } = new List<Effect>
         {
 
             #region Cosmetics
-            new("Force Classic Graphics", GameEffect.forceClassicGraphics.ToString()) { Description = "Force classic graphics", Category = CosmeticEffects, Duration = 60, IsDurationEditable = true},
-            new("Force Remaster Graphics", GameEffect.forceRemasterGraphics.ToString()) { Description = "Force remaster graphics", Category = CosmeticEffects, Duration = 60, IsDurationEditable = true},
-            new("TR1 Classic Outfit", GameEffect.classic1Outfit.ToString()) { Description = "Change Lara into TR1's classic outfit", Category = CosmeticEffects},
-            new("TR1 Training Outfit", GameEffect.training1Outfit.ToString()) { Description = "Change Lara into TR1's training outfit", Category = CosmeticEffects},
-            new("TR2 Classic Outfit", GameEffect.classic2Outfit.ToString()) { Description = "Change Lara into TR2's classic outfit", Category = CosmeticEffects},
-            new("TR2 Training Outfit", GameEffect.training2Outfit.ToString()) { Description = "Change Lara into TR2's training outfit", Category = CosmeticEffects},
-            new("Wetsuit Outfit", GameEffect.wetsuitOutfit.ToString()) { Description = "Change Lara into the wetsuit outfit", Category = CosmeticEffects},
-            new("Bomber Outfit", GameEffect.bomberOutfit.ToString()) { Description = "Change Lara into the bomber outfit", Category = CosmeticEffects},
-            new("Bathrobe Outfit", GameEffect.bathrobeOutfit.ToString()) { Description = "Change Lara into the bathrobe outfit", Category = CosmeticEffects},
-            new("TR3 Training Outfit", GameEffect.training3Outfit.ToString()) { Description = "Change Lara into TR3's training outfit", Category = CosmeticEffects},
-            new("Nevada Outfit", GameEffect.nevadaOutfit.ToString()) { Description = "Change Lara into the Nevada outfit", Category = CosmeticEffects},
-            new("Pacific Outfit", GameEffect.pacificOutfit.ToString()) { Description = "Change Lara into the Pacific outfit", Category = CosmeticEffects},
-            new("Catsuit Outfit", GameEffect.catsuitOutfit.ToString()) { Description = "Change Lara into the catsuit outfit", Category = CosmeticEffects},
-            new("Antarctica Outfit", GameEffect.antarcticaOutfit.ToString()) { Description = "Change Lara into the Antarctica outfit", Category = CosmeticEffects},
-            new("Bloody Classic Outfit", GameEffect.bloodyClassicOutfit.ToString()) { Description = "Change Lara into the bloody classic outfit", Category = CosmeticEffects},
-            new("OG Outfit", GameEffect.ogLaraOutfit.ToString()) { Description = "Change Lara into OG Lara in remastered graphics", Category = CosmeticEffects},
-            new("Vegas Outfit", GameEffect.vegasOutfit.ToString()) { Description = "Change Lara into the Vegas outfit", Category = CosmeticEffects},
-            new("Put on Sunglasses", GameEffect.putOnSunglasses.ToString()) { Description = "Put on Lara's signature sunglasses", Category = CosmeticEffects},
-            new("Take off Sunglasses", GameEffect.takeOffSunglasses.ToString()) { Description = "Take off Lara's signature sunglasses", Category = CosmeticEffects},
+            new("Force Classic Graphics", GameEffect.forceClassicGraphics.ToString()) { Description = "Force classic graphics", Category = BuildCategories(GameEffect.forceClassicGraphics, CosmeticEffects), Duration = 60, IsDurationEditable = true},
+            new("Force Remaster Graphics", GameEffect.forceRemasterGraphics.ToString()) { Description = "Force remaster graphics", Category = BuildCategories(GameEffect.forceRemasterGraphics, CosmeticEffects), Duration = 60, IsDurationEditable = true},
+            new("TR1 Classic Outfit", GameEffect.classic1Outfit.ToString()) { Description = "Change Lara into TR1's classic outfit", Category = BuildCategories(GameEffect.classic1Outfit, CosmeticEffects)},
+            new("TR1 Training Outfit", GameEffect.training1Outfit.ToString()) { Description = "Change Lara into TR1's training outfit", Category = BuildCategories(GameEffect.training1Outfit, CosmeticEffects)},
+            new("TR2 Classic Outfit", GameEffect.classic2Outfit.ToString()) { Description = "Change Lara into TR2's classic outfit", Category = BuildCategories(GameEffect.classic2Outfit, CosmeticEffects)},
+            new("TR2 Training Outfit", GameEffect.training2Outfit.ToString()) { Description = "Change Lara into TR2's training outfit", Category = BuildCategories(GameEffect.training2Outfit, CosmeticEffects)},
+            new("Wetsuit Outfit", GameEffect.wetsuitOutfit.ToString()) { Description = "Change Lara into the wetsuit outfit", Category = BuildCategories(GameEffect.wetsuitOutfit, CosmeticEffects)},
+            new("Bomber Outfit", GameEffect.bomberOutfit.ToString()) { Description = "Change Lara into the bomber outfit", Category = BuildCategories(GameEffect.bomberOutfit, CosmeticEffects)},
+            new("Bathrobe Outfit", GameEffect.bathrobeOutfit.ToString()) { Description = "Change Lara into the bathrobe outfit", Category = BuildCategories(GameEffect.bathrobeOutfit, CosmeticEffects)},
+            new("TR3 Training Outfit", GameEffect.training3Outfit.ToString()) { Description = "Change Lara into TR3's training outfit", Category = BuildCategories(GameEffect.training3Outfit, CosmeticEffects)},
+            new("Nevada Outfit", GameEffect.nevadaOutfit.ToString()) { Description = "Change Lara into the Nevada outfit", Category = BuildCategories(GameEffect.nevadaOutfit, CosmeticEffects)},
+            new("Pacific Outfit", GameEffect.pacificOutfit.ToString()) { Description = "Change Lara into the Pacific outfit", Category = BuildCategories(GameEffect.pacificOutfit, CosmeticEffects)},
+            new("Catsuit Outfit", GameEffect.catsuitOutfit.ToString()) { Description = "Change Lara into the catsuit outfit", Category = BuildCategories(GameEffect.catsuitOutfit, CosmeticEffects)},
+            new("Antarctica Outfit", GameEffect.antarcticaOutfit.ToString()) { Description = "Change Lara into the Antarctica outfit", Category = BuildCategories(GameEffect.antarcticaOutfit, CosmeticEffects)},
+            new("Bloody Classic Outfit", GameEffect.bloodyClassicOutfit.ToString()) { Description = "Change Lara into the bloody classic outfit", Category = BuildCategories(GameEffect.bloodyClassicOutfit, CosmeticEffects)},
+            new("OG Outfit", GameEffect.ogLaraOutfit.ToString()) { Description = "Change Lara into OG Lara in remastered graphics", Category = BuildCategories(GameEffect.ogLaraOutfit, CosmeticEffects)},
+            new("Vegas Outfit", GameEffect.vegasOutfit.ToString()) { Description = "Change Lara into the Vegas outfit", Category = BuildCategories(GameEffect.vegasOutfit, CosmeticEffects)},
+            new("Put on Sunglasses", GameEffect.putOnSunglasses.ToString()) { Description = "Put on Lara's signature sunglasses", Category = BuildCategories(GameEffect.putOnSunglasses, CosmeticEffects)},
+            new("Take off Sunglasses", GameEffect.takeOffSunglasses.ToString()) { Description = "Take off Lara's signature sunglasses", Category = BuildCategories(GameEffect.takeOffSunglasses, CosmeticEffects)},
             #endregion
 
             #region Movement
-            new("Force Tank Controls", GameEffect.forceTankControls.ToString()) { Description = "Force tank controls", Category = MovementEffects, Duration = 60, IsDurationEditable = true},
-            new("Force Modern Controls", GameEffect.forceModernControls.ToString()) { Description = "Force modern controls", Category = MovementEffects, Duration = 60, IsDurationEditable = true},
-            new("Force Forward Movement", GameEffect.forceMoveForward.ToString()) { Description = "Force Lara to move forward", Category = MovementEffects, Duration = 1, IsDurationEditable = true},
-            new("Force Backward Movement", GameEffect.forceMoveBackward.ToString()) { Description = "Force Lara to move backward", Category = MovementEffects, Duration = 1, IsDurationEditable = true},
-            new("Force Jump", GameEffect.forceJump.ToString()) { Description = "Force Lara to jump", Category = MovementEffects, Duration = 1, IsDurationEditable = true},
-            new("Force Walk", GameEffect.forceWalk.ToString()) { Description = "Force Lara to walk", Category = MovementEffects, Duration = 10, IsDurationEditable = true},
-            new("Force Swan Dive", GameEffect.forceSwanDive.ToString()) { Description = "Force Lara to Swan Dive", Category = MovementEffects, Duration = 2, IsDurationEditable = true},
+            new("Force Tank Controls", GameEffect.forceTankControls.ToString()) { Description = "Force tank controls", Category = BuildCategories(GameEffect.forceTankControls, MovementEffects), Duration = 60, IsDurationEditable = true},
+            new("Force Modern Controls", GameEffect.forceModernControls.ToString()) { Description = "Force modern controls", Category = BuildCategories(GameEffect.forceModernControls, MovementEffects), Duration = 60, IsDurationEditable = true},
+            new("Force Forward Movement", GameEffect.forceMoveForward.ToString()) { Description = "Force Lara to move forward", Category = BuildCategories(GameEffect.forceMoveForward, MovementEffects), Duration = 1, IsDurationEditable = true},
+            new("Force Backward Movement", GameEffect.forceMoveBackward.ToString()) { Description = "Force Lara to move backward", Category = BuildCategories(GameEffect.forceMoveBackward, MovementEffects), Duration = 1, IsDurationEditable = true},
+            new("Force Jump", GameEffect.forceJump.ToString()) { Description = "Force Lara to jump", Category = BuildCategories(GameEffect.forceJump, MovementEffects), Duration = 1, IsDurationEditable = true},
+            new("Force Walk", GameEffect.forceWalk.ToString()) { Description = "Force Lara to walk", Category = BuildCategories(GameEffect.forceWalk, MovementEffects), Duration = 10, IsDurationEditable = true},
+            new("Force Swan Dive", GameEffect.forceSwanDive.ToString()) { Description = "Force Lara to Swan Dive", Category = BuildCategories(GameEffect.forceSwanDive, MovementEffects), Duration = 2, IsDurationEditable = true},
             #endregion
 
             #region Other
-            new("Restart Current Level", GameEffect.restartLevel.ToString()) { Description = "Restart the current level", Category = OtherEffects},
-            new("Invisi-Lara", GameEffect.invisibleLara.ToString()) { Description = "Turn Lara invisible(forces OG graphics)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Dark Lara (TR1/TR2)", GameEffect.darkLara.ToString()) { Description = "Turn Lara into Dark Lara(forces OG graphics)[TR1 and TR2 only]", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Force Unequip", GameEffect.forceUnequip.ToString()) { Description = "Force Lara to put her weapons away", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Halve Fall Damage", GameEffect.halfFallDamage.ToString()) { Description = "Halve the fall damage Lara takes", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double Fall Damage", GameEffect.doubleFallDamage.ToString()) { Description = "Double the fall damage Lara takes", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Flood Level", GameEffect.floodLevel.ToString()) { Description = "Flood the current level", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Super \"Jump\"", GameEffect.superJump.ToString()) { Description = "Immediately teleport Lara into the air directly above where she is", Category = OtherEffects},
-            new("Double Pistol Damage", GameEffect.doublePistolDamage.ToString()) { Description = "Double the damage Lara's pistols deal", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double Shotgun Damage", GameEffect.doubleShotgunDamage.ToString()) { Description = "Double the damage Lara's Shotgun deals", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double Uzi Damage", GameEffect.doubleUziDamage.ToString()) { Description = "Double the damage Lara's Uzis deal", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable Pistol Damage", GameEffect.disablePistolDamage.ToString()) { Description = "Disable Lara's pistols from dealing damage", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable Shotgun Damage", GameEffect.disableShotgunDamage.ToString()) { Description = "Disable Lara's Shotgun from dealing damage", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable Uzi Damage", GameEffect.disableUziDamage.ToString()) { Description = "Disable Lara's Uzis from dealing damage", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double Magnum Damage (TR1)", GameEffect.tr1DoubleMagnumDamage.ToString()) { Description = "Double the damage Lara's Magnums deal (TR1 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable Magnum Damage (TR1)", GameEffect.tr1DisableMagnumDamage.ToString()) { Description = "Disable Lara's Magnums from dealing damage (TR1 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double Harpoon Damage (TR2/TR3)", GameEffect.doubleHarpoonDamage.ToString()) { Description = "Double the damage Lara's Harpoon Gun deals (TR2 and 3 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable Harpoon Damage (TR2/TR3)", GameEffect.disableHarpoonDamage.ToString()) { Description = "Disable Lara's Harpoon Gun from dealing damage (TR2 and 3 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double Automatic Pistols Damage (TR2)", GameEffect.doubleAutoPistolsDamage.ToString()) { Description = "Double the damage Lara's Automatic Pistols deal (TR2 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable Automatic Pistols Damage (TR2)", GameEffect.disableAutoPistolsDamage.ToString()) { Description = "Disable Lara's Automatic Pistols from dealing damage (TR2 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double M16 Damage (TR2)", GameEffect.doubleM16Damage.ToString()) { Description = "Double the damage Lara's M16 deals (TR2 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable M16 Damage (TR2)", GameEffect.disableM16Damage.ToString()) { Description = "Disable Lara's M16 from dealing damage (TR2 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double Desert Eagle Damage (TR3)", GameEffect.doubleDeagleDamage.ToString()) { Description = "Double the damage Lara's Desert Eagle deals (TR3 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable Desert Eagle Damage (TR3)", GameEffect.disableDeagleDamage.ToString()) { Description = "Disable Lara's Desert Eagle from dealing damage (TR3 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Double MP5 Damage (TR3)", GameEffect.doubleMP5Damage.ToString()) { Description = "Double the damage Lara's MP5 deals (TR3 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
-            new("Disable MP5 Damage (TR3)", GameEffect.disableMP5Damage.ToString()) { Description = "Disable Lara's MP5 from dealing damage (TR3 only)", Category = OtherEffects, Duration = 30, IsDurationEditable = true},
+            new("Restart Current Level", GameEffect.restartLevel.ToString()) { Description = "Restart the current level", Category = BuildCategories(GameEffect.restartLevel, OtherEffects)},
+            new("Invisi-Lara", GameEffect.invisibleLara.ToString()) { Description = "Turn Lara invisible(forces OG graphics)", Category = BuildCategories(GameEffect.invisibleLara, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Dark Lara", GameEffect.darkLara.ToString()) { Description = "Turn Lara into Dark Lara(forces OG graphics)", Category = BuildCategories(GameEffect.darkLara, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Force Unequip", GameEffect.forceUnequip.ToString()) { Description = "Force Lara to put her weapons away", Category = BuildCategories(GameEffect.forceUnequip, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Halve Fall Damage", GameEffect.halfFallDamage.ToString()) { Description = "Halve the fall damage Lara takes", Category = BuildCategories(GameEffect.halfFallDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double Fall Damage", GameEffect.doubleFallDamage.ToString()) { Description = "Double the fall damage Lara takes", Category = BuildCategories(GameEffect.doubleFallDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Flood Level", GameEffect.floodLevel.ToString()) { Description = "Flood the current level", Category = BuildCategories(GameEffect.floodLevel, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Super \"Jump\"", GameEffect.superJump.ToString()) { Description = "Immediately teleport Lara into the air directly above where she is", Category = BuildCategories(GameEffect.superJump, OtherEffects)},
+            new("Double Pistol Damage", GameEffect.doublePistolDamage.ToString()) { Description = "Double the damage Lara's pistols deal", Category = BuildCategories(GameEffect.doublePistolDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double Shotgun Damage", GameEffect.doubleShotgunDamage.ToString()) { Description = "Double the damage Lara's Shotgun deals", Category = BuildCategories(GameEffect.doubleShotgunDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double Uzi Damage", GameEffect.doubleUziDamage.ToString()) { Description = "Double the damage Lara's Uzis deal", Category = BuildCategories(GameEffect.doubleUziDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable Pistol Damage", GameEffect.disablePistolDamage.ToString()) { Description = "Disable Lara's pistols from dealing damage", Category = BuildCategories(GameEffect.disablePistolDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable Shotgun Damage", GameEffect.disableShotgunDamage.ToString()) { Description = "Disable Lara's Shotgun from dealing damage", Category = BuildCategories(GameEffect.disableShotgunDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable Uzi Damage", GameEffect.disableUziDamage.ToString()) { Description = "Disable Lara's Uzis from dealing damage", Category = BuildCategories(GameEffect.disableUziDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double Magnum Damage", GameEffect.tr1DoubleMagnumDamage.ToString()) { Description = "Double the damage Lara's Magnums deal", Category = BuildCategories(GameEffect.tr1DoubleMagnumDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable Magnum Damage", GameEffect.tr1DisableMagnumDamage.ToString()) { Description = "Disable Lara's Magnums from dealing damage", Category = BuildCategories(GameEffect.tr1DisableMagnumDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double Harpoon Damage", GameEffect.doubleHarpoonDamage.ToString()) { Description = "Double the damage Lara's Harpoon Gun deals", Category = BuildCategories(GameEffect.doubleHarpoonDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable Harpoon Damage", GameEffect.disableHarpoonDamage.ToString()) { Description = "Disable Lara's Harpoon Gun from dealing damage", Category = BuildCategories(GameEffect.disableHarpoonDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double Automatic Pistols Damage", GameEffect.doubleAutoPistolsDamage.ToString()) { Description = "Double the damage Lara's Automatic Pistols deal", Category = BuildCategories(GameEffect.doubleAutoPistolsDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable Automatic Pistols Damage", GameEffect.disableAutoPistolsDamage.ToString()) { Description = "Disable Lara's Automatic Pistols from dealing damage", Category = BuildCategories(GameEffect.disableAutoPistolsDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double M16 Damage", GameEffect.doubleM16Damage.ToString()) { Description = "Double the damage Lara's M16 deals", Category = BuildCategories(GameEffect.doubleM16Damage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable M16 Damage", GameEffect.disableM16Damage.ToString()) { Description = "Disable Lara's M16 from dealing damage", Category = BuildCategories(GameEffect.disableM16Damage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double Desert Eagle Damage", GameEffect.doubleDeagleDamage.ToString()) { Description = "Double the damage Lara's Desert Eagle deals", Category = BuildCategories(GameEffect.doubleDeagleDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable Desert Eagle Damage", GameEffect.disableDeagleDamage.ToString()) { Description = "Disable Lara's Desert Eagle from dealing damage", Category = BuildCategories(GameEffect.disableDeagleDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Double MP5 Damage", GameEffect.doubleMP5Damage.ToString()) { Description = "Double the damage Lara's MP5 deals", Category = BuildCategories(GameEffect.doubleMP5Damage, OtherEffects), Duration = 30, IsDurationEditable = true},
+            new("Disable MP5 Damage", GameEffect.disableMP5Damage.ToString()) { Description = "Disable Lara's MP5 from dealing damage", Category = BuildCategories(GameEffect.disableMP5Damage, OtherEffects), Duration = 30, IsDurationEditable = true},
             
             #endregion 
 
             #region Backpack
             /*new("Give Pistols", "tr1GivePistols") { Description="Put Lara's pistols in her backpack", Category="Backpack" },
             new("Take Pistols", "tr1TakePistols") { Description="Take Lara's pistols out of her backpack", Category="Backpack"},*/
-            new("Give Small Medi Pack", GameEffect.giveSmallMedi.ToString()) { Description="Give Lara a small medi pack", Category = BackpackEffects, DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Small Medi Pack", GameEffect.takeSmallMedi.ToString()) { Description="Take away one of Lara's small medi packs", Category = BackpackEffects, DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Give Large Medi Pack", GameEffect.giveLargeMedi.ToString()) { Description="Give Lara a large medi pack", Category = BackpackEffects, DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Large Medi Pack", GameEffect.takeLargeMedi.ToString()) { Description="Take away one of Lara's large medi packs", Category = BackpackEffects, DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Give Flare (TR2/TR3)", GameEffect.giveFlare.ToString()) { Description="Give Lara a flare (TR2 and TR3 only)", Category = BackpackEffects, DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Flare (TR2/TR3)", GameEffect.takeFlare.ToString()) { Description="Take away one of Lara's flares (TR2 and TR3 only)", Category = BackpackEffects, DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Give Small Medi Pack", GameEffect.giveSmallMedi.ToString()) { Description="Give Lara a small medi pack", Category = BuildCategories(GameEffect.giveSmallMedi, BackpackEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Small Medi Pack", GameEffect.takeSmallMedi.ToString()) { Description="Take away one of Lara's small medi packs", Category = BuildCategories(GameEffect.takeSmallMedi, BackpackEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Give Large Medi Pack", GameEffect.giveLargeMedi.ToString()) { Description="Give Lara a large medi pack", Category = BuildCategories(GameEffect.giveLargeMedi, BackpackEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Large Medi Pack", GameEffect.takeLargeMedi.ToString()) { Description="Take away one of Lara's large medi packs", Category = BuildCategories(GameEffect.takeLargeMedi, BackpackEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Give Flare", GameEffect.giveFlare.ToString()) { Description="Give Lara a flare", Category = BuildCategories(GameEffect.giveFlare, BackpackEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Flare", GameEffect.takeFlare.ToString()) { Description="Take away one of Lara's flares", Category = BuildCategories(GameEffect.takeFlare, BackpackEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
 
-            new("Give Shotgun", GameEffect.giveShotgun.ToString()) { Description="Put Lara's shotgun in her backpack", Category=BackpackEffects },
-            new("Take Shotgun", GameEffect.takeShotgun.ToString()) { Description="Take Lara's shotgun out of her backpack", Category=BackpackEffects},
-            new("Give Uzis", GameEffect.giveUzis.ToString()) { Description="Put Lara's Uzis in her backpack", Category=BackpackEffects },
-            new("Take Uzis", GameEffect.takeUzis.ToString()) { Description="Take Lara's Uzis out of her backpack", Category=BackpackEffects},
-            new("Give Magnums (TR1)", GameEffect.tr1GiveMagnums.ToString()) { Description="Put Lara's Magnums in her backpack (TR1 only)", Category=BackpackEffects },
-            new("Take Magnums (TR1)", GameEffect.tr1TakeMagnums.ToString()) { Description="Take Lara's Magnums out of her backpack (TR1 only)", Category=BackpackEffects},
-            new("Give Automatic Pistols (TR2)", GameEffect.giveAutoPistols.ToString()) { Description="Put Lara's Automatic Pistols in her backpack (TR2 only)", Category=BackpackEffects },
-            new("Take Automatic Pistols (TR2)", GameEffect.takeAutoPistols.ToString()) { Description="Take Lara's Automatic Pistols out of her backpack (TR2 only)", Category=BackpackEffects},
-            new("Give M16 (TR2)", GameEffect.giveM16.ToString()) { Description="Put Lara's M16 in her backpack (TR2 only)", Category=BackpackEffects },
-            new("Take M16 (TR2)", GameEffect.takeM16.ToString()) { Description="Take Lara's M16 out of her backpack (TR2 only)", Category=BackpackEffects},
-            new("Give Grenade Launcher (TR2/TR3)", GameEffect.giveGrenadeLauncher.ToString()) { Description="Put Lara's Grenade Launcher in her backpack (TR2 and TR3 only)", Category=BackpackEffects },
-            new("Take Grenade Launcher (TR2/TR3)", GameEffect.takeGrenadeLauncher.ToString()) { Description="Take Lara's Grenade Launcher out of her backpack (TR2 and TR3 only)", Category=BackpackEffects},
-            new("Give Harpoon Gun (TR2/TR3)", GameEffect.giveHarpoonGun.ToString()) { Description="Put Lara's Harpoon Gun in her backpack (TR2 and TR3 only)", Category=BackpackEffects },
-            new("Take Harpoon Gun (TR2/TR3)", GameEffect.takeHarpoonGun.ToString()) { Description="Take Lara's Harpoon Gun out of her backpack (TR2 and TR3 only)", Category=BackpackEffects},
-            new("Give Desert Eagle (TR3)", GameEffect.giveDesertEagle.ToString()) { Description="Put Lara's Desert Eagle in her backpack (TR3 only)", Category=BackpackEffects },
-            new("Take Desert Eagle (TR3)", GameEffect.takeDesertEagle.ToString()) { Description="Take Lara's Desert Eagle out of her backpack (TR3 only)", Category=BackpackEffects},
-            new("Give MP5 (TR3)", GameEffect.giveMP5.ToString()) { Description="Put Lara's MP5 in her backpack (TR3 only)", Category=BackpackEffects},
-            new("Take MP5 (TR3)",  GameEffect.takeMP5.ToString()) { Description="Take Lara's MP5 out of her backpack (TR3 only)", Category=BackpackEffects},
-            new("Give Rocket Launcher (TR3)", GameEffect.giveRocketLauncher.ToString()) { Description="Put Lara's Rocket Launcher in her backpack (TR3 only)", Category=BackpackEffects },
-            new("Take Rocket Launcher (TR3)", GameEffect.takeRocketLauncher.ToString()) { Description="Take Lara's Rocket Launcher out of her backpack (TR3 only)", Category=BackpackEffects},
+            new("Give Shotgun", GameEffect.giveShotgun.ToString()) { Description="Put Lara's shotgun in her backpack", Category=BuildCategories(GameEffect.giveShotgun, BackpackEffects) },
+            new("Take Shotgun", GameEffect.takeShotgun.ToString()) { Description="Take Lara's shotgun out of her backpack", Category=BuildCategories(GameEffect.takeShotgun, BackpackEffects)},
+            new("Give Uzis", GameEffect.giveUzis.ToString()) { Description="Put Lara's Uzis in her backpack", Category=BuildCategories(GameEffect.giveUzis, BackpackEffects) },
+            new("Take Uzis", GameEffect.takeUzis.ToString()) { Description="Take Lara's Uzis out of her backpack", Category=BuildCategories(GameEffect.takeUzis, BackpackEffects)},
+            new("Give Magnums", GameEffect.tr1GiveMagnums.ToString()) { Description="Put Lara's Magnums in her backpack", Category=BuildCategories(GameEffect.tr1GiveMagnums, BackpackEffects) },
+            new("Take Magnums", GameEffect.tr1TakeMagnums.ToString()) { Description="Take Lara's Magnums out of her backpack", Category=BuildCategories(GameEffect.tr1TakeMagnums, BackpackEffects)},
+            new("Give Automatic Pistols", GameEffect.giveAutoPistols.ToString()) { Description="Put Lara's Automatic Pistols in her backpack", Category=BuildCategories(GameEffect.giveAutoPistols, BackpackEffects) },
+            new("Take Automatic Pistols", GameEffect.takeAutoPistols.ToString()) { Description="Take Lara's Automatic Pistols out of her backpack", Category=BuildCategories(GameEffect.takeAutoPistols, BackpackEffects)},
+            new("Give M16", GameEffect.giveM16.ToString()) { Description="Put Lara's M16 in her backpack", Category=BuildCategories(GameEffect.giveM16, BackpackEffects) },
+            new("Take M16", GameEffect.takeM16.ToString()) { Description="Take Lara's M16 out of her backpack", Category=BuildCategories(GameEffect.takeM16, BackpackEffects)},
+            new("Give Grenade Launcher", GameEffect.giveGrenadeLauncher.ToString()) { Description="Put Lara's Grenade Launcher in her backpack", Category=BuildCategories(GameEffect.giveGrenadeLauncher, BackpackEffects) },
+            new("Take Grenade Launcher", GameEffect.takeGrenadeLauncher.ToString()) { Description="Take Lara's Grenade Launcher out of her backpack", Category=BuildCategories(GameEffect.takeGrenadeLauncher, BackpackEffects)},
+            new("Give Harpoon Gun", GameEffect.giveHarpoonGun.ToString()) { Description="Put Lara's Harpoon Gun in her backpack", Category=BuildCategories(GameEffect.giveHarpoonGun, BackpackEffects) },
+            new("Take Harpoon Gun", GameEffect.takeHarpoonGun.ToString()) { Description="Take Lara's Harpoon Gun out of her backpack", Category=BuildCategories(GameEffect.takeHarpoonGun, BackpackEffects)},
+            new("Give Desert Eagle", GameEffect.giveDesertEagle.ToString()) { Description="Put Lara's Desert Eagle in her backpack", Category=BuildCategories(GameEffect.giveDesertEagle, BackpackEffects) },
+            new("Take Desert Eagle", GameEffect.takeDesertEagle.ToString()) { Description="Take Lara's Desert Eagle out of her backpack", Category=BuildCategories(GameEffect.takeDesertEagle, BackpackEffects)},
+            new("Give MP5", GameEffect.giveMP5.ToString()) { Description="Put Lara's MP5 in her backpack", Category=BuildCategories(GameEffect.giveMP5, BackpackEffects)},
+            new("Take MP5",  GameEffect.takeMP5.ToString()) { Description="Take Lara's MP5 out of her backpack", Category=BuildCategories(GameEffect.takeMP5, BackpackEffects)},
+            new("Give Rocket Launcher", GameEffect.giveRocketLauncher.ToString()) { Description="Put Lara's Rocket Launcher in her backpack", Category=BuildCategories(GameEffect.giveRocketLauncher, BackpackEffects) },
+            new("Take Rocket Launcher", GameEffect.takeRocketLauncher.ToString()) { Description="Take Lara's Rocket Launcher out of her backpack", Category=BuildCategories(GameEffect.takeRocketLauncher, BackpackEffects)},
             #endregion
 
             #region Items and Ammo
             /*new("Give Compass", "tr1GiveCompass") { Description = "Give Lara her compass", Category="Items"},
             new("Take Compass", "tr1TakeCompass") { Description = "Take Lara's compass away", Category="Items"},*/
-            new("Give Shotgun Ammo", GameEffect.giveShotgunAmmo.ToString()) { Description="Give Lara more shotgun shells", Category= AmmoEffects, DefaultQuantity = 2, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Shotgun Ammo", GameEffect.takeShotgunAmmo.ToString()) { Description="Take some of Lara's shotgun shells", Category= AmmoEffects, DefaultQuantity = 2, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Uzi Ammo", GameEffect.giveUziAmmo.ToString()) { Description="Give Lara more Uzi bullets", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Uzi Ammo", GameEffect.takeUziAmmo.ToString()) { Description="Take some of Lara's Uzi bullets", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Magnum Ammo (TR1)", GameEffect.tr1GiveMagnumAmmo.ToString()) { Description="Give Lara more Magnum bullets (TR1 Only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Magnum Ammo (TR1)", GameEffect.tr1TakeMagnumAmmo.ToString()) { Description="Take some of Lara's Magnum bullets (TR1 Only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Automatic Pistol Ammo (TR2)", GameEffect.giveAutoPistolAmmo.ToString()) { Description="Give Lara more automatic pistol bullets (TR2 only)", Category = AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Automatic Pistol Ammo (TR2)", GameEffect.takeAutoPistolAmmo.ToString()) { Description="Take some of Lara's automatic pistol bullets (TR2 only)", Category = AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give M16 Ammo (TR2)", GameEffect.giveM16Ammo.ToString()) { Description="Give Lara more M16 bullets (TR2 only)", Category=AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take M16 Ammo (TR2)", GameEffect.takeM16Ammo.ToString()) { Description="Take some of Lara's M16 bullets (TR2 only)", Category=AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Grenades (TR2/TR3)", GameEffect.giveGrenadeAmmo.ToString()) { Description="Give Lara more grenades (TR2 and TR3 only)", Category=AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Grenades (TR2/TR3)", GameEffect.takeGrenadeAmmo.ToString()) { Description="Take some of Lara's grenades (TR2 and TR3 only)", Category=AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Harpoons (TR2/TR3)", GameEffect.giveHarpoonAmmo.ToString()) { Description="Give Lara more harpoons (TR2 and TR3 only)", Category=AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Harpoons (TR2/TR3)", GameEffect.takeHarpoonAmmo.ToString()) { Description="Take some of Lara's harpoons (TR2 and TR3 only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give MP5 Ammo (TR3)", GameEffect.giveMP5Ammo.ToString()) { Description="Give Lara more MP5 bullets (TR3 only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take MP5 Ammo (TR3)", GameEffect.takeMP5Ammo.ToString()) { Description="Take some of Lara's MP5 bullets (TR3 only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Desert Eagle Ammo (TR3)", GameEffect.giveDeagleAmmo.ToString()) { Description="Give Lara more Desert Eagle bullets (TR3 only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Desert Eagle Ammo (TR3)", GameEffect.takeDeagleAmmo.ToString()) { Description="Take some of Lara's Desert Eagle bullets (TR3 only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Rockets (TR3)", GameEffect.giveRocketAmmo.ToString()) { Description="Give Lara more rockets (TR3 only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Rockets (TR3)", GameEffect.takeRocketAmmo.ToString()) { Description="Take some of Lara's rockets (TR3 only)", Category= AmmoEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Shotgun Ammo", GameEffect.giveShotgunAmmo.ToString()) { Description="Give Lara more shotgun shells", Category= BuildCategories(GameEffect.giveShotgunAmmo, AmmoEffects), DefaultQuantity = 2, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Shotgun Ammo", GameEffect.takeShotgunAmmo.ToString()) { Description="Take some of Lara's shotgun shells", Category= BuildCategories(GameEffect.takeShotgunAmmo, AmmoEffects), DefaultQuantity = 2, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Uzi Ammo", GameEffect.giveUziAmmo.ToString()) { Description="Give Lara more Uzi bullets", Category= BuildCategories(GameEffect.giveUziAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Uzi Ammo", GameEffect.takeUziAmmo.ToString()) { Description="Take some of Lara's Uzi bullets", Category= BuildCategories(GameEffect.takeUziAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Magnum Ammo", GameEffect.tr1GiveMagnumAmmo.ToString()) { Description="Give Lara more Magnum bullets", Category= BuildCategories(GameEffect.tr1GiveMagnumAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Magnum Ammo", GameEffect.tr1TakeMagnumAmmo.ToString()) { Description="Take some of Lara's Magnum bullets", Category= BuildCategories(GameEffect.tr1TakeMagnumAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Automatic Pistol Ammo", GameEffect.giveAutoPistolAmmo.ToString()) { Description="Give Lara more automatic pistol bullets", Category = BuildCategories(GameEffect.giveAutoPistolAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Automatic Pistol Ammo", GameEffect.takeAutoPistolAmmo.ToString()) { Description="Take some of Lara's automatic pistol bullets", Category = BuildCategories(GameEffect.takeAutoPistolAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give M16 Ammo", GameEffect.giveM16Ammo.ToString()) { Description="Give Lara more M16 bullets", Category=BuildCategories(GameEffect.giveM16Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take M16 Ammo", GameEffect.takeM16Ammo.ToString()) { Description="Take some of Lara's M16 bullets", Category=BuildCategories(GameEffect.takeM16Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Grenades", GameEffect.giveGrenadeAmmo.ToString()) { Description="Give Lara more grenades", Category=BuildCategories(GameEffect.giveGrenadeAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Grenades", GameEffect.takeGrenadeAmmo.ToString()) { Description="Take some of Lara's grenades", Category=BuildCategories(GameEffect.takeGrenadeAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Harpoons", GameEffect.giveHarpoonAmmo.ToString()) { Description="Give Lara more harpoons", Category=BuildCategories(GameEffect.giveHarpoonAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Harpoons", GameEffect.takeHarpoonAmmo.ToString()) { Description="Take some of Lara's harpoons", Category= BuildCategories(GameEffect.takeHarpoonAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give MP5 Ammo", GameEffect.giveMP5Ammo.ToString()) { Description="Give Lara more MP5 bullets", Category= BuildCategories(GameEffect.giveMP5Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take MP5 Ammo", GameEffect.takeMP5Ammo.ToString()) { Description="Take some of Lara's MP5 bullets", Category= BuildCategories(GameEffect.takeMP5Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Desert Eagle Ammo", GameEffect.giveDeagleAmmo.ToString()) { Description="Give Lara more Desert Eagle bullets", Category= BuildCategories(GameEffect.giveDeagleAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Desert Eagle Ammo", GameEffect.takeDeagleAmmo.ToString()) { Description="Take some of Lara's Desert Eagle bullets", Category= BuildCategories(GameEffect.takeDeagleAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Rockets", GameEffect.giveRocketAmmo.ToString()) { Description="Give Lara more rockets", Category= BuildCategories(GameEffect.giveRocketAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Rockets", GameEffect.takeRocketAmmo.ToString()) { Description="Take some of Lara's rockets", Category= BuildCategories(GameEffect.takeRocketAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
             
             #endregion
 
             #region Lara's Meters
-            new("Heal Lara", GameEffect.healLara.ToString()) { Description="Who needs medi packs when you can heal directly?", Category= MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 1000) },
-            new("Increase Lara's Max HP", GameEffect.increaseMaxHP.ToString()) { Description = "Permanently increase Lara's max HP", Category = MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Hurt Lara", GameEffect.hurtLara.ToString()) { Description="You monster.", Category= MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 1000) },
-            new("Decrease Lara's Max HP", GameEffect.decreaseMaxHP.ToString()) { Description = "Permanently decrease Lara's max HP", Category = MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Give Lara O2", GameEffect.giveO2.ToString()) {Description="Give Lara a breath of fresh air", Category= MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 1800) },
-            new("Increase Lara's Max O2", GameEffect.increaseMaxO2.ToString()) { Description = "Permanently increase Lara's max O2", Category = MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Lara O2", GameEffect.takeO2.ToString()) {Description="Take Lara's breath away. Literally.", Category= MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 1800) },
-            new("Decrease Lara's Max O2", GameEffect.decreaseMaxO2.ToString()) { Description = "Permanently decrease Lara's max O2", Category = MeterEffects, DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("\"Poison\" Lara", GameEffect.poisonLara.ToString()) { Description = "Slowly tick away Lara's HP until Lara uses a medi pack, the poison ticks out, or Lara dies", Category = MeterEffects, Duration = 60, IsDurationEditable = true},
-            new("Disable Stamina (TR3)", GameEffect.disableStamina.ToString()) { Description = "Disable Lara from using stamina for some time (TR3 only)", Category = MeterEffects, Duration = 30, IsDurationEditable =true},
-            new("Half Stamina (TR3)", GameEffect.halfStamina.ToString()) { Description = "Set Lara's max stamina to 1/2 for some time (TR3 only)", Category = MeterEffects, Duration = 30, IsDurationEditable =true},
-            new("Infinite Stamina (TR3)", GameEffect.infiniteStamina.ToString()) { Description = "Give Lara infinite stamina for some time (TR3 only)", Category = MeterEffects, Duration = 30, IsDurationEditable =true},
+            new("Heal Lara", GameEffect.healLara.ToString()) { Description="Who needs medi packs when you can heal directly?", Category= BuildCategories(GameEffect.healLara, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1000) },
+            new("Increase Lara's Max HP", GameEffect.increaseMaxHP.ToString()) { Description = "Permanently increase Lara's max HP", Category = BuildCategories(GameEffect.increaseMaxHP, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Hurt Lara", GameEffect.hurtLara.ToString()) { Description="You monster.", Category= BuildCategories(GameEffect.hurtLara, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1000) },
+            new("Decrease Lara's Max HP", GameEffect.decreaseMaxHP.ToString()) { Description = "Permanently decrease Lara's max HP", Category = BuildCategories(GameEffect.decreaseMaxHP, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Give Lara O2", GameEffect.giveO2.ToString()) {Description="Give Lara a breath of fresh air", Category= BuildCategories(GameEffect.giveO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1800) },
+            new("Increase Lara's Max O2", GameEffect.increaseMaxO2.ToString()) { Description = "Permanently increase Lara's max O2", Category = BuildCategories(GameEffect.increaseMaxO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Lara O2", GameEffect.takeO2.ToString()) {Description="Take Lara's breath away. Literally.", Category= BuildCategories(GameEffect.takeO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1800) },
+            new("Decrease Lara's Max O2", GameEffect.decreaseMaxO2.ToString()) { Description = "Permanently decrease Lara's max O2", Category = BuildCategories(GameEffect.decreaseMaxO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("\"Poison\" Lara", GameEffect.poisonLara.ToString()) { Description = "Slowly tick away Lara's HP until Lara uses a medi pack, the poison ticks out, or Lara dies", Category = BuildCategories(GameEffect.poisonLara, MeterEffects), Duration = 60, IsDurationEditable = true},
+            new("Disable Stamina", GameEffect.disableStamina.ToString()) { Description = "Disable Lara from using stamina for some time", Category = BuildCategories(GameEffect.disableStamina, MeterEffects), Duration = 30, IsDurationEditable =true},
+            new("Half Stamina", GameEffect.halfStamina.ToString()) { Description = "Set Lara's max stamina to 1/2 for some time", Category = BuildCategories(GameEffect.halfStamina, MeterEffects), Duration = 30, IsDurationEditable =true},
+            new("Infinite Stamina", GameEffect.infiniteStamina.ToString()) { Description = "Give Lara infinite stamina for some time", Category = BuildCategories(GameEffect.infiniteStamina, MeterEffects), Duration = 30, IsDurationEditable =true},
             #endregion
         };
 
@@ -584,7 +652,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             TR2_M16Ammo = 0x11D420,
             TR2_GrenadeAmmo = 0x120760,
             TR2_HarpoonAmmo = 0x122100,
-            TR3_Compass = 0x17FAB0, 
+            TR3_Compass = 0x17FAB0,
             TR3_Pistols = 0x177A90,
             TR3_Shotgun = 0x17ADD0,
             TR3_DesertEagle = 0x186570,
@@ -593,7 +661,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             TR3_RocketLauncher = 0x16AD90,
             TR3_GrenadeLauncher = 0x184BD0,
             TR3_HarpoonGun = 0x16FA70,
-            TR3_Flares = 0x1858A0, 
+            TR3_Flares = 0x1858A0,
             TR3_LargeMedi = 0x174750,
             TR3_SmallMedi = 0x170740,
             TR3_ShotgunAmmo = 0x16E0D0,
@@ -602,7 +670,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             TR3_MP5Ammo = 0x173A80,
             TR3_RocketAmmo = 0x176DC0,
             TR3_GrenadeAmmo = 0x17C770,
-            TR3_HarpoonAmmo = 0x179430 
+            TR3_HarpoonAmmo = 0x179430
         }
 
         private CurrentGame DetermineCurrentGame()
@@ -622,7 +690,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                         }
                         return CurrentGame.TR1;
                     case 1:
-                        if(tr2MaxHPDeclarations.Count == 0)
+                        if (tr2MaxHPDeclarations.Count == 0)
                         {
                             OffsetAddressChain<InjectConnector>[] maxHPDeclarations = AddressChain.Scan(Connector, new ReadOnlySpan<byte>(maxHPCodeBytes), false, _tomb2DllBase, _tomb2DllBase + 0x509000);
                             Log.Debug($"Found {maxHPDeclarations.Length} max HP declarations for TR2");
@@ -630,7 +698,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                         }
                         return CurrentGame.TR2;
                     case 2:
-                        if(tr3MaxHPDeclarations.Count == 0)
+                        if (tr3MaxHPDeclarations.Count == 0)
                         {
                             OffsetAddressChain<InjectConnector>[] maxHPDeclarations = AddressChain.Scan(Connector, new ReadOnlySpan<byte>(maxHPCodeBytes), false, _tomb3DllBase, _tomb3DllBase + 0x56F000);
                             Log.Debug($"Found {maxHPDeclarations.Length} max HP declarations for TR3");
@@ -681,14 +749,61 @@ namespace CrowdControl.Games.Packs.Tomb123
 
                 _lastReportedGame = currentGame;
 
+                List<(Effect effect, string? effectId, EffectStatus status)> updates = [];
                 foreach (KeyValuePair<GameEffect, HashSet<CurrentGame>> restriction in _effectGameRestrictions)
                 {
                     if (!_effectById.TryGetValue(restriction.Key, out Effect? effect))
                         continue;
 
                     bool isVisible = restriction.Value.Contains(currentGame);
-                    ReportStatus(effect, isVisible ? EffectStatus.MenuVisible : EffectStatus.MenuHidden);
+                    EffectStatus status = isVisible ? EffectStatus.MenuVisible : EffectStatus.MenuHidden;
+                    _effectIdByGameEffect.TryGetValue(restriction.Key, out string? effectId);
+                    updates.Add((effect, effectId, status));
                 }
+
+                if (updates.Count == 0)
+                    return;
+
+                List<(string effectId, EffectStatus status)> statusUpdates = [];
+                foreach ((Effect _, string? effectId, EffectStatus status) in updates)
+                {
+                    if (!string.IsNullOrWhiteSpace(effectId))
+                        statusUpdates.Add((effectId, status));
+                }
+
+                if (statusUpdates.Count == 0)
+                    return;
+
+                if (TryReportStatusBatch(statusUpdates))
+                    return;
+
+                List<string> hiddenIds = [];
+                List<string> visibleIds = [];
+                foreach ((string effectId, EffectStatus status) in statusUpdates)
+                {
+                    if (status == EffectStatus.MenuHidden)
+                        hiddenIds.Add(effectId);
+                    else if (status == EffectStatus.MenuVisible)
+                        visibleIds.Add(effectId);
+                }
+
+                bool reported = true;
+                if (hiddenIds.Count > 0)
+                {
+                    reported &= (TryReportStatusByIdList(hiddenIds, EffectStatus.MenuHidden, true)
+                        || TryReportStatusByIdList(hiddenIds, EffectStatus.MenuHidden));
+                }
+                if (visibleIds.Count > 0)
+                {
+                    reported &= (TryReportStatusByIdList(visibleIds, EffectStatus.MenuVisible, true)
+                        || TryReportStatusByIdList(visibleIds, EffectStatus.MenuVisible));
+                }
+
+                if (reported)
+                    return;
+
+                foreach ((Effect effect, string? _, EffectStatus status) in updates)
+                    ReportStatus(effect, status);
             }
         }
 
@@ -699,16 +814,276 @@ namespace CrowdControl.Games.Packs.Tomb123
 
             foreach (Effect effect in Effects)
             {
-                if (Enum.TryParse(effect.Code, out GameEffect gameEffect))
+                string? effectId = GetEffectId(effect);
+                if (effectId != null && Enum.TryParse(effectId, out GameEffect gameEffect))
+                {
                     _effectById[gameEffect] = effect;
+                    _effectIdByGameEffect[gameEffect] = effectId;
+                    continue;
+                }
+
+                string? displayName = GetEffectDisplayName(effect);
+                if (displayName != null && _effectNameToId.TryGetValue(displayName, out GameEffect mappedEffect))
+                {
+                    _effectById[mappedEffect] = effect;
+                    _effectIdByGameEffect[mappedEffect] = displayName;
+                }
             }
+        }
+
+        private bool TryReportStatusBatch(IReadOnlyList<(string effectId, EffectStatus status)> updates)
+        {
+            try
+            {
+                foreach (System.Reflection.MethodInfo method in GetAllInstanceMethods(GetType()))
+                {
+                    if (!string.Equals(method.Name, "ReportStatus", StringComparison.Ordinal))
+                        continue;
+                    System.Reflection.ParameterInfo[] parameters = method.GetParameters();
+                    if (parameters.Length != 1)
+                        continue;
+                    Type paramType = parameters[0].ParameterType;
+                    if (!TryGetEnumerableElementType(paramType, out Type? elementType))
+                        continue;
+
+                    Array batch = Array.CreateInstance(elementType, updates.Count);
+                    for (int i = 0; i < updates.Count; i++)
+                    {
+                        object item = Activator.CreateInstance(elementType)!;
+                        SetStatusUpdateValues(item, updates[i].effectId, updates[i].status);
+                        batch.SetValue(item, i);
+                    }
+
+                    method.Invoke(this, [batch]);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to report status batch: {ex.Message}");
+            }
+            return false;
+        }
+
+
+        private static bool TryGetEnumerableElementType(Type type, out Type? elementType)
+        {
+            if (type.IsArray)
+            {
+                elementType = type.GetElementType();
+                return elementType != null;
+            }
+
+            if (type == typeof(IEnumerable))
+            {
+                elementType = typeof(object);
+                return true;
+            }
+
+            foreach (Type iface in type.GetInterfaces())
+            {
+                if (iface.IsGenericType && iface.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                {
+                    elementType = iface.GetGenericArguments()[0];
+                    return true;
+                }
+            }
+
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                elementType = type.GetGenericArguments()[0];
+                return true;
+            }
+
+            elementType = null;
+            return false;
+        }
+
+        private bool TryReportStatusByIdList(IReadOnlyList<string> effectIds, EffectStatus status)
+        {
+            try
+            {
+                string[] idArray = effectIds.ToArray();
+                foreach (System.Reflection.MethodInfo method in GetAllInstanceMethods(GetType()))
+                {
+                    if (!string.Equals(method.Name, "ReportStatus", StringComparison.Ordinal))
+                        continue;
+                    System.Reflection.ParameterInfo[] parameters = method.GetParameters();
+                    if (parameters.Length == 2)
+                    {
+                        Type idsType = parameters[0].ParameterType;
+                        Type statusType = parameters[1].ParameterType;
+                        if (statusType != typeof(EffectStatus))
+                            continue;
+                        if (!idsType.IsAssignableFrom(typeof(string[])) && !idsType.IsAssignableFrom(typeof(IEnumerable<string>)))
+                            continue;
+
+                        method.Invoke(this, [idArray, status]);
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to report status by ID list: {ex.Message}");
+            }
+            return false;
+        }
+
+        private bool TryReportStatusByIdList(IReadOnlyList<string> effectIds, EffectStatus status, bool withIdentifier)
+        {
+            if (!withIdentifier)
+                return TryReportStatusByIdList(effectIds, status);
+
+            try
+            {
+                string[] idArray = effectIds.ToArray();
+                foreach (System.Reflection.MethodInfo method in GetAllInstanceMethods(GetType()))
+                {
+                    if (!string.Equals(method.Name, "ReportStatus", StringComparison.Ordinal))
+                        continue;
+                    System.Reflection.ParameterInfo[] parameters = method.GetParameters();
+                    if (parameters.Length != 3)
+                        continue;
+
+                    Type idsType = parameters[0].ParameterType;
+                    Type identifierType = parameters[1].ParameterType;
+                    Type statusType = parameters[2].ParameterType;
+                    if (statusType != typeof(EffectStatus))
+                        continue;
+                    if (!idsType.IsAssignableFrom(typeof(string[])) && !idsType.IsAssignableFrom(typeof(IEnumerable<string>)))
+                        continue;
+
+                    object? identifierValue = Enum.GetValues(identifierType)
+                        .Cast<object?>()
+                        .FirstOrDefault(value => string.Equals(value?.ToString(), "Effect", StringComparison.OrdinalIgnoreCase));
+                    if (identifierValue == null)
+                        continue;
+
+                    method.Invoke(this, [idArray, identifierValue, status]);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to report status by ID list with identifier: {ex.Message}");
+            }
+            return false;
+        }
+
+
+        private static IEnumerable<System.Reflection.MethodInfo> GetAllInstanceMethods(Type type)
+        {
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic;
+            for (Type? current = type; current != null; current = current.BaseType)
+            {
+                foreach (System.Reflection.MethodInfo method in current.GetMethods(flags))
+                    yield return method;
+            }
+        }
+
+        private static void SetStatusUpdateValues(object item, string effectId, EffectStatus status)
+        {
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic;
+
+            if (!SetMemberValue(item, "EffectID", effectId, flags))
+            {
+                if (!SetMemberValue(item, "EffectId", effectId, flags))
+                {
+                    if (!SetMemberValue(item, "Id", effectId, flags))
+                        SetMemberValue(item, "ID", effectId, flags);
+                }
+            }
+
+            if (!SetMemberValue(item, "Status", status, flags))
+            {
+                if (!SetMemberValue(item, "State", status, flags))
+                    SetMemberValue(item, "EffectStatus", status, flags);
+            }
+        }
+
+        private static bool SetMemberValue(object target, string name, object value, System.Reflection.BindingFlags flags)
+        {
+            System.Reflection.PropertyInfo? property = target.GetType().GetProperty(name, flags);
+            if (property != null && property.CanWrite)
+            {
+                property.SetValue(target, value);
+                return true;
+            }
+
+            System.Reflection.FieldInfo? field = target.GetType().GetField(name, flags);
+            if (field != null)
+            {
+                field.SetValue(target, value);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static string? GetEffectId(Effect effect)
+        {
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic;
+            string? id = effect.GetType().GetProperty("Code", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetProperty("ID", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetProperty("Id", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetProperty("EffectID", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetProperty("EffectId", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("Code", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("ID", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("Id", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("EffectID", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("EffectId", flags)?.GetValue(effect)?.ToString();
+            if (id != null && _gameEffectIds.Contains(id))
+                return id;
+
+            foreach (System.Reflection.PropertyInfo property in effect.GetType().GetProperties(flags))
+            {
+                if (property.PropertyType == typeof(string)
+                    && property.GetValue(effect) is string value
+                    && _gameEffectIds.Contains(value))
+                {
+                    return value;
+                }
+            }
+
+            foreach (System.Reflection.FieldInfo field in effect.GetType().GetFields(flags))
+            {
+                if (field.FieldType == typeof(string)
+                    && field.GetValue(effect) is string value
+                    && _gameEffectIds.Contains(value))
+                {
+                    return value;
+                }
+            }
+
+            return null;
+        }
+
+        private static string? GetEffectDisplayName(Effect effect)
+        {
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic;
+            return effect.GetType().GetProperty("Name", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetProperty("DisplayName", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetProperty("Title", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("Name", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("DisplayName", flags)?.GetValue(effect)?.ToString()
+                ?? effect.GetType().GetField("Title", flags)?.GetValue(effect)?.ToString();
         }
 
         protected override GameState GetGameState()
         {
             try
             {
-                if (IsPausedOrMenu()) 
+                if (IsPausedOrMenu())
                     return GameState.WrongMode;
                 return GameState.Ready;
             }
@@ -853,7 +1228,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                 Log.Debug($"Current count of {itemAdjusted} in backpack is: {currentCount}");
                 if (increase)
                 {
-                    if(currentCount == 0x7FFF)
+                    if (currentCount == 0x7FFF)
                     {
                         //already at max, cannot add more
                         return false;
@@ -924,12 +1299,12 @@ namespace CrowdControl.Games.Packs.Tomb123
             };
             int indexInBackpack = GetBackpackStatus(currentGame, backpackItem);
 
-            if (increase) 
+            if (increase)
             {
                 if (indexInBackpack == -1)
                 {
                     bool adjustedBackpackStatus = AdjustBackpackStatus(currentGame, backpackItem, true);
-                    if(!adjustedBackpackStatus)
+                    if (!adjustedBackpackStatus)
                         return false;
                     Log.Debug("Added large medi pack to backpack");
                     indexInBackpack = GetBackpackStatus(currentGame, backpackItem);
@@ -938,7 +1313,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             }
             else
             {
-                if(indexInBackpack == -1)
+                if (indexInBackpack == -1)
                 {
                     //not in backpack, cannot reduce count
                     return false;
@@ -960,7 +1335,7 @@ namespace CrowdControl.Games.Packs.Tomb123
 
             if (increase)
             {
-                if(indexInBackpack == -1)
+                if (indexInBackpack == -1)
                 {
                     bool adjustedBackpackStatus = AdjustBackpackStatus(currentGame, backpackItem, true);
                     if (!adjustedBackpackStatus)
@@ -975,7 +1350,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             }
             else
             {
-                if(indexInBackpack == -1)
+                if (indexInBackpack == -1)
                 {
                     //not in backpack, cannot reduce count
                     return false;
@@ -1079,7 +1454,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     backpackSlotOffsets = _tr3BackpackSlotOffsets;
                     break;
                 default:
-                    throw new Exception($"Invalid game detected, cannot adjust backpack status for {currentGame}"); 
+                    throw new Exception($"Invalid game detected, cannot adjust backpack status for {currentGame}");
             }
             int backpackSize = GetBackpackItemCount(currentGame);
             if (addToBackpack)
@@ -1098,7 +1473,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     if (ammoSlot != -1 && ammoSlot < backpackSize)
                     {
                         AddressChain<InjectConnector> backpackSlotCount = GetBackpackSlotCountAddress(currentGame, ammoSlot);
-                        if(GetAmmoCount(ammoItem) <= 0)
+                        if (GetAmmoCount(ammoItem) <= 0)
                         {
                             int ammoToAdd = 0;
                             switch (ammoItem)
@@ -1109,7 +1484,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                                     ammoToAdd = 12 * backpackSlotCount.GetShort(); //its 2 shells for each pack, but *6 because memory is weird(i think cuz lara shoots 6 bullets per trigger pull, but w/e)
                                     break;
                                 case BackpackItem.TR1_MagnumAmmo:
-                                case BackpackItem.TR2_APAmmo: 
+                                case BackpackItem.TR2_APAmmo:
                                     ammoToAdd = 25 * backpackSlotCount.GetShort();
                                     break;
                                 case BackpackItem.TR1_UziAmmo:
@@ -1120,7 +1495,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                                 case BackpackItem.TR3_DesertEagle:
                                     ammoToAdd = 7 * backpackSlotCount.GetShort();
                                     break;
-                                case BackpackItem.TR2_M16Ammo: 
+                                case BackpackItem.TR2_M16Ammo:
                                 case BackpackItem.TR3_MP5Ammo:
                                     ammoToAdd = 30 * backpackSlotCount.GetShort();
                                     break;
@@ -1137,7 +1512,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                             AdjustAmmoCount(ammoItem, (uint)ammoToAdd, true);
                         }
                         return AddressChain.Parse(Connector, $"{gameDll}+{backpackSlotOffsets[ammoSlot]:X}").
-                            TrySetULong(dllBase+(uint)itemToChange);
+                            TrySetULong(dllBase + (uint)itemToChange);
                     }
                     else
                     {
@@ -1153,8 +1528,8 @@ namespace CrowdControl.Games.Packs.Tomb123
             else
             {
                 int backpackSlot = GetBackpackStatus(currentGame, itemToChange);
-                if (_tr1BackpackItemsWithAmmo.Contains(itemToChange) || 
-                    _tr2BackpackItemsWithAmmo.Contains(itemToChange) || 
+                if (_tr1BackpackItemsWithAmmo.Contains(itemToChange) ||
+                    _tr2BackpackItemsWithAmmo.Contains(itemToChange) ||
                     _tr3BackpackItemsWithAmmo.Contains(itemToChange))
                 {
                     //replace gun with ammo, if possible
@@ -1180,7 +1555,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     };
                     ForceEquip(currentGame, 1); //Force equip pistols since weapon is removed from inventory. if this fails, its not that big of a deal
                     return AddressChain.Parse(Connector, $"{gameDll}+{backpackSlotOffsets[backpackSlot]:X}").
-                        TrySetULong(dllBase+(uint)ammoItem);
+                        TrySetULong(dllBase + (uint)ammoItem);
                 }
                 else
                 {
@@ -1297,14 +1672,14 @@ namespace CrowdControl.Games.Packs.Tomb123
                         throw new Exception("Unable to read current harpoon ammo count");
                 default:
                     throw new Exception("Impossible state reached");
-                }
+            }
         }
 
         private bool AdjustAmmoCount(BackpackItem ammoToEdit, uint ammoCountToEdit, bool increase)
         {
             int currentAmmo = GetAmmoCount(ammoToEdit);
 
-            if((increase && currentAmmo == 0x7FFF) || (!increase && currentAmmo == 0))
+            if ((increase && currentAmmo == 0x7FFF) || (!increase && currentAmmo == 0))
             {
                 //ammo for this weapon is already full and we're trying to increase
                 //or its empty and we're trying to decrease: delay effect
@@ -1333,7 +1708,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             };
             if (increase)
             {
-                if(ammoCountToEdit+currentAmmo < 0x7FFF)
+                if (ammoCountToEdit + currentAmmo < 0x7FFF)
                 {
                     return ammoMemory.TrySetShort((short)(ammoCountToEdit + currentAmmo));
                 }
@@ -1427,14 +1802,14 @@ namespace CrowdControl.Games.Packs.Tomb123
                     Log.Debug($"Checking to see if {precedingItem} is in the backpack...");
                     int precedingIndex = currentBackpackOrder.IndexOf(precedingItem);
                     //If the preceding item is not present in the current backpack...
-                    if (precedingIndex == -1) 
+                    if (precedingIndex == -1)
                     {
                         //check to see if it has ammo
                         if (backpackItemsWithAmmo.Contains(precedingItem))
                         {
                             //if it does, check and see if the ammo is in our current backpack.
                             precedingIndex = currentBackpackOrder.IndexOf(GetAmmoTypeOfGun(precedingItem));
-                            if(precedingIndex != -1)
+                            if (precedingIndex != -1)
                             {
                                 //if it is, then we've found the preceding index we need
                                 placementIndex = precedingIndex;
@@ -1464,7 +1839,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     short currentSlotCount = slotCountAddressChain.GetShort();
                     GetBackpackSlotCountAddress(currentGame, i).SetShort(previousSlotCount);
                     previousSlotCount = currentSlotCount;
-                    
+
                     //Set slot ID
                     AddressChain<InjectConnector> slotIdAddressChain = AddressChain.Parse(Connector, $"{currentDll}+{backpackSlotOffsets[i]:X}");
                     ulong slotId = slotIdAddressChain.GetULong();
@@ -1506,7 +1881,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             {
                 //move everything up one in slot counts (i becomes i+1, i+1 becomes i+2, etc) and the slot IDs
                 //this appears to be what the native functionality is, so we want to mimic that
-                for(int i = backpackSlot; i <= backpackSize - 2; i++)
+                for (int i = backpackSlot; i <= backpackSize - 2; i++)
                 {
                     AddressChain<InjectConnector> slotCountAddressChain = GetBackpackSlotCountAddress(currentGame, i + 1);
                     short slotCount = slotCountAddressChain.GetShort();
@@ -1564,7 +1939,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                 default:
                     throw new Exception("Invalid hooked game detected");
             }
-            
+
             AddressChain<InjectConnector> hpMemory = AddressChain.Parse(Connector, $"{gameDll}+{laraOffset:X}");
             PointerAddressChain<InjectConnector> realMemory = hpMemory.Follow();
             AddressChain<InjectConnector> realestHpMemory = AddressChain.Parse(Connector, $"{realMemory.Address:X}+{_laraHealthOffset:X}");
@@ -1649,7 +2024,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             _modifyingGraphics = true;
             AddressChain<InjectConnector> currentState = AddressChain.Parse(Connector, $"{_mainGame}+{_tr123GraphicsAndControlOffset:X}");
             byte state = currentState.GetByte();
-            if(_wasOGGraphics == null)
+            if (_wasOGGraphics == null)
             {
                 _wasOGGraphics = state % 2 == 0;
             }
@@ -1673,11 +2048,11 @@ namespace CrowdControl.Games.Packs.Tomb123
         {
             _modifyingControls = true;
             AddressChain<InjectConnector> currentState = AddressChain.Parse(Connector, $"{_mainGame}+{_tr123GraphicsAndControlOffset:X}");
-            
+
             byte state = currentState.GetByte();
-            BitArray bitArray = new (BitConverter.GetBytes((char)state));
+            BitArray bitArray = new(BitConverter.GetBytes((char)state));
             Log.Debug($"Current control scheme bit: {bitArray[1]}");
-            if(_wasTankControls == null)
+            if (_wasTankControls == null)
             {
                 _wasTankControls = !bitArray[1];
             }
@@ -1731,7 +2106,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                 {
                     return visibilityByte.TrySetShort(0);
                 }
-                else if(currentVisibility == 0)
+                else if (currentVisibility == 0)
                     return true;
             }
             else
@@ -1814,7 +2189,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                 return false;
             }
 
-            return AdjustHP(currentGame, 10, false);            
+            return AdjustHP(currentGame, 10, false);
         }
 
         private byte GetRoomCount(CurrentGame currentGame)
@@ -1866,7 +2241,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                 if (_floodedRoomStateOriginal.Count == 0)
                 {
                     //effect is started, or we're in a new level and flooding again
-                    for(int i = 0; i < roomCount; i++)
+                    for (int i = 0; i < roomCount; i++)
                     {
                         bool success = GetFloodState(roomPointer, i, out byte floodState);
                         if (success)
@@ -1880,7 +2255,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
 
                     //if we have gotten all original states for all rooms successfully, then we can safely flood the rooms
-                    for(int i = 0; i < _floodedRoomStateOriginal.Count; i++)
+                    for (int i = 0; i < _floodedRoomStateOriginal.Count; i++)
                     {
                         bool success = SetFloodState(roomPointer, i, 1);
                         if (!success)
@@ -1894,12 +2269,12 @@ namespace CrowdControl.Games.Packs.Tomb123
                 else if (_floodedRoomStateOriginal.Count == roomCount)
                 {
                     //we're still in the same level as before
-                    for(int i = 0; i < _floodedRoomStateOriginal.Count; i++)
+                    for (int i = 0; i < _floodedRoomStateOriginal.Count; i++)
                     {
                         bool success = GetFloodState(roomPointer, i, out byte floodState);
                         if (success)
                         {
-                            if(floodState == 0)
+                            if (floodState == 0)
                             {
                                 SetFloodState(roomPointer, i, 1);
                             }
@@ -1914,7 +2289,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             }
             else
             {
-                for(int i = 0; i < _floodedRoomStateOriginal.Count; i++)
+                for (int i = 0; i < _floodedRoomStateOriginal.Count; i++)
                 {
                     SetFloodState(roomPointer, i, _floodedRoomStateOriginal[i]);
                 }
@@ -2001,7 +2376,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                 _ => throw new Exception("Invalid hooked game detected"),
             };
         }
-        
+
         private short GetCurrentMaxO2(CurrentGame currentGame)
         {
             return currentGame switch
@@ -2023,7 +2398,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             switch (currentGame)
             {
                 case CurrentGame.TR1:
-                    foreach(var maxHPDeclaration in tr1MaxHPDeclarations)
+                    foreach (var maxHPDeclaration in tr1MaxHPDeclarations)
                     {
                         bool success = maxHPDeclaration.Offset(1).TrySetShort(maxHP);
                         if (decreasing)
@@ -2094,7 +2469,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             {
                 if (currentMaxHP == 0x7FFF)
                     return false;
-                if(desiredMaxHP < 0x7FFF)
+                if (desiredMaxHP < 0x7FFF)
                 {
                     return SetMaxHP(currentGame, desiredMaxHP);
                 }
@@ -2107,7 +2482,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             {
                 if (currentMaxHP == 1)
                     return false;
-                if(desiredMaxHP > 1)
+                if (desiredMaxHP > 1)
                 {
                     return SetMaxHP(currentGame, desiredMaxHP, true);
                 }
@@ -2174,11 +2549,11 @@ namespace CrowdControl.Games.Packs.Tomb123
                     return false;
                 if (amountToSet >= 1)
                 {
-                    if (SetMaxStamina(amountToSet)) 
+                    if (SetMaxStamina(amountToSet))
                     {
                         if (AdjustCurrentStamina(amountToSet))
                             return true;
-                        else 
+                        else
                             SetMaxStamina(currentMaxStamina);
                     }
                 }
@@ -2254,7 +2629,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                 _affectingPistolDamage = true;
                 return SetWeaponDamage(pistols, 2);
             }
-            else if(increase == false)
+            else if (increase == false)
             {
                 _affectingPistolDamage = true;
                 return SetWeaponDamage(pistols, 0);
@@ -2341,12 +2716,12 @@ namespace CrowdControl.Games.Packs.Tomb123
                     harpoonGun = BackpackItem.TR3_HarpoonGun;
                     damage = 6;
                     break;
-                
+
             }
             if (increase == true)
             {
                 _affectingHarpoonDamage = true;
-                return SetWeaponDamage(harpoonGun, (byte)(damage*2));
+                return SetWeaponDamage(harpoonGun, (byte)(damage * 2));
             }
             else if (increase == false)
             {
@@ -2532,7 +2907,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             if (increase == true)
             {
                 _affectingFallDamage = true;
-                return SetFallDamage(currentGame, 12); 
+                return SetFallDamage(currentGame, 12);
             }
             else if (increase == false)
             {
@@ -2551,7 +2926,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             string gameDll;
             uint currentLevelOffset;
             uint completedFlagOffset;
-            switch (currentGame) 
+            switch (currentGame)
             {
                 case CurrentGame.TR1:
                     gameDll = _tomb1Dll;
@@ -2841,7 +3216,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
                 #endregion
                 #region Cosmetics
-                case GameEffect.putOnSunglasses: 
+                case GameEffect.putOnSunglasses:
                     if (GetGameState() == GameState.WrongMode)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
@@ -3350,7 +3725,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.forceUnequip:
-                    if(GetGameState() == GameState.WrongMode)
+                    if (GetGameState() == GameState.WrongMode)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
@@ -3406,7 +3781,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.giveFlare:
-                    if(GetGameState() == GameState.WrongMode || currentGame == CurrentGame.TR1)
+                    if (GetGameState() == GameState.WrongMode || currentGame == CurrentGame.TR1)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
@@ -3867,7 +4242,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.giveO2:
-                    if(GetGameState() == GameState.WrongMode)
+                    if (GetGameState() == GameState.WrongMode)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
@@ -3958,7 +4333,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     invisibleState.WhenCompleted.Then(() =>
                     {
                         InvisibleLara(currentGame, false);
-                        if(_wasOGGraphics != null)
+                        if (_wasOGGraphics != null)
                             SetGraphics((bool)_wasOGGraphics);
                         _wasOGGraphics = null;
                     });
@@ -3987,14 +4362,14 @@ namespace CrowdControl.Games.Packs.Tomb123
                     darkState.WhenCompleted.Then(() =>
                     {
                         DarkLara(currentGame, false);
-                        if(_wasOGGraphics != null)
+                        if (_wasOGGraphics != null)
                             SetGraphics((bool)_wasOGGraphics);
                         _wasOGGraphics = null;
                     });
                     break;
 
                 case GameEffect.poisonLara:
-                    if(GetGameState() == GameState.WrongMode)
+                    if (GetGameState() == GameState.WrongMode)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
@@ -4017,7 +4392,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.floodLevel:
-                    if(GetGameState() == GameState.WrongMode)
+                    if (GetGameState() == GameState.WrongMode)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
@@ -4043,7 +4418,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.superJump:
-                    if(GetGameState() == GameState.WrongMode)
+                    if (GetGameState() == GameState.WrongMode)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
@@ -4123,7 +4498,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.disableStamina:
-                    if(GetGameState() == GameState.WrongMode || currentGame != CurrentGame.TR3 || _affectingStamina)
+                    if (GetGameState() == GameState.WrongMode || currentGame != CurrentGame.TR3 || _affectingStamina)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
@@ -4131,7 +4506,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     SITimeSpan disableStaminaDuration = request.Duration;
                     EffectState disableStaminaState = RepeatAction(request,
                         () => true,
-                        () => 
+                        () =>
                         {
                             Connector.SendMessage($"{request.DisplayViewer} disabled Lara from sprinting for {disableStaminaDuration} seconds");
                             return AdjustCurrentStamina(0);
@@ -4141,7 +4516,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                         TimeSpan.FromMilliseconds(1000),
                         () =>
                         {
-                            
+
                             return SetMaxStamina(0);
                         },
                         TimeSpan.FromMilliseconds(1000),
@@ -4210,7 +4585,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.doublePistolDamage:
-                    if(GetGameState() == GameState.WrongMode || _affectingPistolDamage)
+                    if (GetGameState() == GameState.WrongMode || _affectingPistolDamage)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
