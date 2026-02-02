@@ -1,4 +1,4 @@
-﻿using ConnectorLib;
+using ConnectorLib;
 using ConnectorLib.Inject;
 using ConnectorLib.Memory;
 using CrowdControl.Common;
@@ -43,6 +43,64 @@ namespace CrowdControl.Games.Packs.Tomb123
         private bool _affectingDesertEagleDamage = false;
         private bool _affectingRocketDamage = false;
         private bool _affectingStamina = false;
+        private readonly TimeSpan _gameStatusPollInterval = TimeSpan.FromSeconds(5);
+        private System.Threading.Timer? _gameStatusTimer;
+        private CurrentGame? _lastReportedGame;
+        private readonly object _statusLock = new();
+        private readonly Dictionary<GameEffect, HashSet<CurrentGame>> _effectGameRestrictions = new()
+        {
+            { GameEffect.tr1GiveMagnums, new HashSet<CurrentGame> { CurrentGame.TR1 } },
+            { GameEffect.tr1TakeMagnums, new HashSet<CurrentGame> { CurrentGame.TR1 } },
+            { GameEffect.tr1GiveMagnumAmmo, new HashSet<CurrentGame> { CurrentGame.TR1 } },
+            { GameEffect.tr1TakeMagnumAmmo, new HashSet<CurrentGame> { CurrentGame.TR1 } },
+            { GameEffect.tr1DoubleMagnumDamage, new HashSet<CurrentGame> { CurrentGame.TR1 } },
+            { GameEffect.tr1DisableMagnumDamage, new HashSet<CurrentGame> { CurrentGame.TR1 } },
+            { GameEffect.giveAutoPistols, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.takeAutoPistols, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.giveM16, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.takeM16, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.giveAutoPistolAmmo, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.takeAutoPistolAmmo, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.giveM16Ammo, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.takeM16Ammo, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.doubleM16Damage, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.disableM16Damage, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.doubleAutoPistolsDamage, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.disableAutoPistolsDamage, new HashSet<CurrentGame> { CurrentGame.TR2 } },
+            { GameEffect.giveDesertEagle, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.takeDesertEagle, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.giveMP5, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.takeMP5, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.giveRocketLauncher, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.takeRocketLauncher, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.giveMP5Ammo, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.takeMP5Ammo, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.giveDeagleAmmo, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.takeDeagleAmmo, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.giveRocketAmmo, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.takeRocketAmmo, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.doubleMP5Damage, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.disableMP5Damage, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.doubleDeagleDamage, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.disableDeagleDamage, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.disableStamina, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.halfStamina, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.infiniteStamina, new HashSet<CurrentGame> { CurrentGame.TR3 } },
+            { GameEffect.giveFlare, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.takeFlare, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.giveGrenadeLauncher, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.takeGrenadeLauncher, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.giveHarpoonGun, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.takeHarpoonGun, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.giveHarpoonAmmo, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.takeHarpoonAmmo, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.giveGrenadeAmmo, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.takeGrenadeAmmo, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.doubleHarpoonDamage, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.disableHarpoonDamage, new HashSet<CurrentGame> { CurrentGame.TR2, CurrentGame.TR3 } },
+            { GameEffect.darkLara, new HashSet<CurrentGame> { CurrentGame.TR1, CurrentGame.TR2 } },
+        };
+        private readonly Dictionary<GameEffect, Effect> _effectById = new();
 
         #region Global Values
         private const uint _currentGameOffset = 0x2F35F0;
@@ -220,11 +278,12 @@ namespace CrowdControl.Games.Packs.Tomb123
             Log.Debug($"TR2 base: {_tomb2DllBase}");
             _tomb3DllBase = AddressChain.ModuleBase(Connector, _tomb3Dll).Address;
             Log.Debug($"TR3 base: {_tomb3DllBase}");
+            InitializeEffectStatusTracking();
         }
 
         private void DeinitGame()
         {
-
+            StopEffectStatusTracking();
         }
 
         public override Game Game { get; } = new("Tomb Raider I-III Remastered", "Tomb123", "PC", ConnectorType.InjectConnector);
@@ -583,6 +642,66 @@ namespace CrowdControl.Games.Packs.Tomb123
 
             Log.Error("Could not detect the current game. Going to try and assume TR1, but will likely not work");
             return CurrentGame.TR1;
+        }
+
+        private void InitializeEffectStatusTracking()
+        {
+            BuildEffectLookup();
+            UpdateEffectMenuStatus(DetermineCurrentGame(), true);
+            _gameStatusTimer?.Dispose();
+            _gameStatusTimer = new System.Threading.Timer(_ => SafeUpdateEffectMenuStatus(), null, _gameStatusPollInterval, _gameStatusPollInterval);
+        }
+
+        private void StopEffectStatusTracking()
+        {
+            _gameStatusTimer?.Dispose();
+            _gameStatusTimer = null;
+            _lastReportedGame = null;
+        }
+
+        private void SafeUpdateEffectMenuStatus()
+        {
+            try
+            {
+                UpdateEffectMenuStatus(DetermineCurrentGame());
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to update menu effect status: {ex.Message}");
+            }
+        }
+
+        private void UpdateEffectMenuStatus(CurrentGame currentGame, bool force = false)
+        {
+            BuildEffectLookup();
+            lock (_statusLock)
+            {
+                if (!force && _lastReportedGame == currentGame)
+                    return;
+
+                _lastReportedGame = currentGame;
+
+                foreach (KeyValuePair<GameEffect, HashSet<CurrentGame>> restriction in _effectGameRestrictions)
+                {
+                    if (!_effectById.TryGetValue(restriction.Key, out Effect? effect))
+                        continue;
+
+                    bool isVisible = restriction.Value.Contains(currentGame);
+                    ReportStatus(effect, isVisible ? EffectStatus.MenuVisible : EffectStatus.MenuHidden);
+                }
+            }
+        }
+
+        private void BuildEffectLookup()
+        {
+            if (_effectById.Count > 0)
+                return;
+
+            foreach (Effect effect in Effects)
+            {
+                if (Enum.TryParse(effect.Code, out GameEffect gameEffect))
+                    _effectById[gameEffect] = effect;
+            }
         }
 
         protected override GameState GetGameState()
@@ -2470,6 +2589,7 @@ namespace CrowdControl.Games.Packs.Tomb123
         {
             string[] codeParams = FinalCode(request).Split("_");
             CurrentGame currentGame = DetermineCurrentGame();
+            UpdateEffectMenuStatus(currentGame);
             BackpackItem backpackItem;
 
             switch (Enum.Parse(typeof(GameEffect), codeParams[0]))
