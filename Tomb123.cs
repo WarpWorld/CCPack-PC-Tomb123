@@ -44,6 +44,7 @@ namespace CrowdControl.Games.Packs.Tomb123
         private bool _affectingDesertEagleDamage = false;
         private bool _affectingRocketDamage = false;
         private bool _affectingStamina = false;
+        private bool _forcingUnequip = false;
         private readonly TimeSpan _gameStatusPollInterval = TimeSpan.FromSeconds(5);
         private System.Threading.Timer? _gameStatusTimer;
         private CurrentGame? _lastReportedGame;
@@ -520,7 +521,7 @@ namespace CrowdControl.Games.Packs.Tomb123
             new("Halve Fall Damage", GameEffect.halfFallDamage.ToString()) { Price = 50, Description = "Halve the fall damage Lara takes", Category = BuildCategories(GameEffect.halfFallDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
             new("Double Fall Damage", GameEffect.doubleFallDamage.ToString()) { Price = 50, Description = "Double the fall damage Lara takes", Category = BuildCategories(GameEffect.doubleFallDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
             new("Flood Level", GameEffect.floodLevel.ToString()) { Price = 500, Description = "Flood the current level", Category = BuildCategories(GameEffect.floodLevel, OtherEffects), Duration = 30, IsDurationEditable = true},
-            new("Super \"Jump\"", GameEffect.superJump.ToString()) { Price = 150, Description = "Immediately teleport Lara into the air directly above where she is", Category = BuildCategories(GameEffect.superJump, OtherEffects)},
+            new("Super \"Jump\"", GameEffect.superJump.ToString()) { Price = 150, Description = "Immediately teleport Lara into the air directly above where she is", Category = BuildCategories(GameEffect.superJump, OtherEffects), SessionCooldown = SITimeSpan.FromSeconds(10)},
             new("Double Pistol Damage", GameEffect.doublePistolDamage.ToString()) { Price = 100, Description = "Double the damage Lara's pistols deal", Category = BuildCategories(GameEffect.doublePistolDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
             new("Double Shotgun Damage", GameEffect.doubleShotgunDamage.ToString()) { Price = 100, Description = "Double the damage Lara's Shotgun deals", Category = BuildCategories(GameEffect.doubleShotgunDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
             new("Double Uzi Damage", GameEffect.doubleUziDamage.ToString()) { Price = 100, Description = "Double the damage Lara's Uzis deal", Category = BuildCategories(GameEffect.doubleUziDamage, OtherEffects), Duration = 30, IsDurationEditable = true},
@@ -577,38 +578,38 @@ namespace CrowdControl.Games.Packs.Tomb123
             #region Items and Ammo
             /*new("Give Compass", "tr1GiveCompass") { Price = 50, Description = "Give Lara her compass", Category="Items"},
             new("Take Compass", "tr1TakeCompass") { Price = 50, Description = "Take Lara's compass away", Category="Items"},*/
-            new("Give Shotgun Ammo", GameEffect.giveShotgunAmmo.ToString()) { Price = 10, Description="Give Lara more shotgun shells", Category= BuildCategories(GameEffect.giveShotgunAmmo, AmmoEffects), DefaultQuantity = 2, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Shotgun Ammo", GameEffect.takeShotgunAmmo.ToString()) { Price = 10, Description="Take some of Lara's shotgun shells", Category= BuildCategories(GameEffect.takeShotgunAmmo, AmmoEffects), DefaultQuantity = 2, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Uzi Ammo", GameEffect.giveUziAmmo.ToString()) { Price = 10, Description="Give Lara more Uzi bullets", Category= BuildCategories(GameEffect.giveUziAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Uzi Ammo", GameEffect.takeUziAmmo.ToString()) { Price = 10, Description="Take some of Lara's Uzi bullets", Category= BuildCategories(GameEffect.takeUziAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Magnum Ammo", GameEffect.tr1GiveMagnumAmmo.ToString()) { Note ="TR1", Price = 10, Description="Give Lara more Magnum bullets", Category= BuildCategories(GameEffect.tr1GiveMagnumAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Magnum Ammo", GameEffect.tr1TakeMagnumAmmo.ToString()) { Note = "TR1", Price = 10, Description="Take some of Lara's Magnum bullets", Category= BuildCategories(GameEffect.tr1TakeMagnumAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Automatic Pistol Ammo", GameEffect.giveAutoPistolAmmo.ToString()) { Note = "TR2", Price = 10, Description="Give Lara more automatic pistol bullets", Category = BuildCategories(GameEffect.giveAutoPistolAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Automatic Pistol Ammo", GameEffect.takeAutoPistolAmmo.ToString()) { Note = "TR2", Price = 10, Description="Take some of Lara's automatic pistol bullets", Category = BuildCategories(GameEffect.takeAutoPistolAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give M16 Ammo", GameEffect.giveM16Ammo.ToString()) { Note = "TR2", Price = 10, Description="Give Lara more M16 bullets", Category=BuildCategories(GameEffect.giveM16Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take M16 Ammo", GameEffect.takeM16Ammo.ToString()) { Note = "TR2", Price = 10, Description="Take some of Lara's M16 bullets", Category=BuildCategories(GameEffect.takeM16Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Grenades", GameEffect.giveGrenadeAmmo.ToString()) { Note = "TR2/TR3", Price = 10, Description="Give Lara more grenades", Category=BuildCategories(GameEffect.giveGrenadeAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Grenades", GameEffect.takeGrenadeAmmo.ToString()) { Note = "TR2/TR3", Price = 10, Description="Take some of Lara's grenades", Category=BuildCategories(GameEffect.takeGrenadeAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Harpoons", GameEffect.giveHarpoonAmmo.ToString()) { Note = "TR2/TR3",Price = 10, Description="Give Lara more harpoons", Category=BuildCategories(GameEffect.giveHarpoonAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Harpoons", GameEffect.takeHarpoonAmmo.ToString()) { Note = "TR2/TR3", Price = 10, Description="Take some of Lara's harpoons", Category= BuildCategories(GameEffect.takeHarpoonAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give MP5 Ammo", GameEffect.giveMP5Ammo.ToString()) { Note = "TR3", Price = 10, Description="Give Lara more MP5 bullets", Category= BuildCategories(GameEffect.giveMP5Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take MP5 Ammo", GameEffect.takeMP5Ammo.ToString()) { Note = "TR3", Price = 10, Description="Take some of Lara's MP5 bullets", Category= BuildCategories(GameEffect.takeMP5Ammo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Desert Eagle Ammo", GameEffect.giveDeagleAmmo.ToString()) { Note = "TR3", Price = 10, Description="Give Lara more Desert Eagle bullets", Category= BuildCategories(GameEffect.giveDeagleAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Desert Eagle Ammo", GameEffect.takeDeagleAmmo.ToString()) { Note = "TR3", Price = 10, Description="Take some of Lara's Desert Eagle bullets", Category= BuildCategories(GameEffect.takeDeagleAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
-            new("Give Rockets", GameEffect.giveRocketAmmo.ToString()) { Note = "TR3", Price = 10, Description="Give Lara more rockets", Category= BuildCategories(GameEffect.giveRocketAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Rockets", GameEffect.takeRocketAmmo.ToString()) { Note = "TR3", Price = 10, Description="Take some of Lara's rockets", Category= BuildCategories(GameEffect.takeRocketAmmo, AmmoEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Shotgun Ammo", GameEffect.giveShotgunAmmo.ToString()) { Price = 10, Description="Give Lara 2 shotgun shells", Category= BuildCategories(GameEffect.giveShotgunAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Shotgun Ammo", GameEffect.takeShotgunAmmo.ToString()) { Price = 10, Description="Take 2 of Lara's shotgun shells", Category= BuildCategories(GameEffect.takeShotgunAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Uzi Ammo", GameEffect.giveUziAmmo.ToString()) { Price = 10, Description="Give Lara 50 Uzi bullets", Category= BuildCategories(GameEffect.giveUziAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Uzi Ammo", GameEffect.takeUziAmmo.ToString()) { Price = 10, Description="Take 50 of Lara's Uzi bullets", Category= BuildCategories(GameEffect.takeUziAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Magnum Ammo", GameEffect.tr1GiveMagnumAmmo.ToString()) { Note ="TR1", Price = 25, Description="Give Lara 25 Magnum bullets", Category= BuildCategories(GameEffect.tr1GiveMagnumAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Magnum Ammo", GameEffect.tr1TakeMagnumAmmo.ToString()) { Note = "TR1", Price = 25, Description="Take 25 of Lara's Magnum bullets", Category= BuildCategories(GameEffect.tr1TakeMagnumAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Automatic Pistol Ammo", GameEffect.giveAutoPistolAmmo.ToString()) { Note = "TR2", Price = 10, Description="Give Lara 25 automatic pistol bullets", Category = BuildCategories(GameEffect.giveAutoPistolAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Automatic Pistol Ammo", GameEffect.takeAutoPistolAmmo.ToString()) { Note = "TR2", Price = 10, Description="Take 25 of Lara's automatic pistol bullets", Category = BuildCategories(GameEffect.takeAutoPistolAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give M16 Ammo", GameEffect.giveM16Ammo.ToString()) { Note = "TR2", Price = 10, Description="Give Lara 30 M16 bullets", Category=BuildCategories(GameEffect.giveM16Ammo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take M16 Ammo", GameEffect.takeM16Ammo.ToString()) { Note = "TR2", Price = 10, Description="Take 30 of Lara's M16 bullets", Category=BuildCategories(GameEffect.takeM16Ammo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Grenades", GameEffect.giveGrenadeAmmo.ToString()) { Note = "TR2/TR3", Price = 10, Description="Give Lara 2 grenades", Category=BuildCategories(GameEffect.giveGrenadeAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Grenades", GameEffect.takeGrenadeAmmo.ToString()) { Note = "TR2/TR3", Price = 10, Description="Take 2 of Lara's grenades", Category=BuildCategories(GameEffect.takeGrenadeAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Harpoons", GameEffect.giveHarpoonAmmo.ToString()) { Note = "TR2/TR3",Price = 10, Description="Give Lara 4 harpoons", Category=BuildCategories(GameEffect.giveHarpoonAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Harpoons", GameEffect.takeHarpoonAmmo.ToString()) { Note = "TR2/TR3", Price = 10, Description="Take 4 of Lara's harpoons", Category= BuildCategories(GameEffect.takeHarpoonAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give MP5 Ammo", GameEffect.giveMP5Ammo.ToString()) { Note = "TR3", Price = 10, Description="Give Lara 30 MP5 bullets", Category= BuildCategories(GameEffect.giveMP5Ammo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take MP5 Ammo", GameEffect.takeMP5Ammo.ToString()) { Note = "TR3", Price = 10, Description="Take 30 of Lara's MP5 bullets", Category= BuildCategories(GameEffect.takeMP5Ammo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Desert Eagle Ammo", GameEffect.giveDeagleAmmo.ToString()) { Note = "TR3", Price = 10, Description="Give Lara 7 Desert Eagle bullets", Category= BuildCategories(GameEffect.giveDeagleAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Desert Eagle Ammo", GameEffect.takeDeagleAmmo.ToString()) { Note = "TR3", Price = 10, Description="Take 7 of Lara's Desert Eagle bullets", Category= BuildCategories(GameEffect.takeDeagleAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
+            new("Give Rockets", GameEffect.giveRocketAmmo.ToString()) { Note = "TR3", Price = 10, Description="Give Lara 2 rockets", Category= BuildCategories(GameEffect.giveRocketAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Take Rockets", GameEffect.takeRocketAmmo.ToString()) { Note = "TR3", Price = 10, Description="Take 2 of Lara's rockets", Category= BuildCategories(GameEffect.takeRocketAmmo, AmmoEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 0x7FFF)},
             
             #endregion
 
             #region Lara's Meters
-            new("Heal Lara", GameEffect.healLara.ToString()) { Price = 100, Description="Who needs medi packs when you can heal directly?", Category= BuildCategories(GameEffect.healLara, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1000) },
-            new("Increase Lara's Max HP", GameEffect.increaseMaxHP.ToString()) { Price = 100, Description = "Permanently increase Lara's max HP", Category = BuildCategories(GameEffect.increaseMaxHP, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Hurt Lara", GameEffect.hurtLara.ToString()) { Price = 100, Description="You monster.", Category= BuildCategories(GameEffect.hurtLara, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1000) },
-            new("Decrease Lara's Max HP", GameEffect.decreaseMaxHP.ToString()) { Price = 100, Description = "Permanently decrease Lara's max HP", Category = BuildCategories(GameEffect.decreaseMaxHP, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Give Lara O2", GameEffect.giveO2.ToString()) { Price = 100, Description="Give Lara a breath of fresh air", Category= BuildCategories(GameEffect.giveO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1800) },
-            new("Increase Lara's Max O2", GameEffect.increaseMaxO2.ToString()) { Price = 100, Description = "Permanently increase Lara's max O2", Category = BuildCategories(GameEffect.increaseMaxO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
-            new("Take Lara O2", GameEffect.takeO2.ToString()) { Price = 100, Description="Take Lara's breath away. Literally.", Category= BuildCategories(GameEffect.takeO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 1800) },
-            new("Decrease Lara's Max O2", GameEffect.decreaseMaxO2.ToString()) { Price = 100, Description = "Permanently decrease Lara's max O2", Category = BuildCategories(GameEffect.decreaseMaxO2, MeterEffects), DefaultQuantity = 25, Quantity = new QuantityRange(1, 0x7FFF) },
+            new("Heal Lara", GameEffect.healLara.ToString()) { Price = 100, Description="Heal Lara for 10% HP. Who needs medi packs when you can heal directly?", Category= BuildCategories(GameEffect.healLara, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
+            new("Increase Lara's Max HP", GameEffect.increaseMaxHP.ToString()) { Price = 100, Description = "Permanently increase Lara's max HP by 10%", Category = BuildCategories(GameEffect.increaseMaxHP, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
+            new("Hurt Lara", GameEffect.hurtLara.ToString()) { Price = 100, Description="Hurt Lara for 10% HP. You monster.", Category= BuildCategories(GameEffect.hurtLara, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
+            new("Decrease Lara's Max HP", GameEffect.decreaseMaxHP.ToString()) { Price = 100, Description = "Permanently decrease Lara's max HP by 10%", Category = BuildCategories(GameEffect.decreaseMaxHP, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
+            new("Give Lara O2", GameEffect.giveO2.ToString()) { Price = 100, Description="Give Lara a breath of fresh air, +10% O2", Category= BuildCategories(GameEffect.giveO2, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
+            new("Increase Lara's Max O2", GameEffect.increaseMaxO2.ToString()) { Price = 100, Description = "Permanently increase Lara's max O2 by 10%", Category = BuildCategories(GameEffect.increaseMaxO2, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
+            new("Take Lara O2", GameEffect.takeO2.ToString()) { Price = 100, Description="Take Lara's breath away. Literally. -10% O2", Category= BuildCategories(GameEffect.takeO2, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
+            new("Decrease Lara's Max O2", GameEffect.decreaseMaxO2.ToString()) { Price = 100, Description = "Permanently decrease Lara's max O2 by 10%", Category = BuildCategories(GameEffect.decreaseMaxO2, MeterEffects), DefaultQuantity = 1, Quantity = new QuantityRange(1, 10) },
             new("\"Poison\" Lara", GameEffect.poisonLara.ToString()) { Price = 300, Description = "Slowly tick away Lara's HP until Lara uses a medi pack, the poison ticks out, or Lara dies", Category = BuildCategories(GameEffect.poisonLara, MeterEffects), Duration = 60, IsDurationEditable = true},
             new("Disable Stamina", GameEffect.disableStamina.ToString()) { Note = "TR3", Price = 200, Description = "Disable Lara from using stamina for some time", Category = BuildCategories(GameEffect.disableStamina, MeterEffects), Duration = 30, IsDurationEditable =true},
             new("Half Stamina", GameEffect.halfStamina.ToString()) { Note = "TR2/TR3", Price = 100, Description = "Set Lara's max stamina to 1/2 for some time", Category = BuildCategories(GameEffect.halfStamina, MeterEffects), Duration = 30, IsDurationEditable =true},
@@ -1083,7 +1084,7 @@ namespace CrowdControl.Games.Packs.Tomb123
         {
             try
             {
-                if (IsPausedOrMenu())
+                if (IsPausedOrMenu() || IsLevelCompleteScreen())
                     return GameState.WrongMode;
                 return GameState.Ready;
             }
@@ -1482,31 +1483,45 @@ namespace CrowdControl.Games.Packs.Tomb123
                                 case BackpackItem.TR2_ShotgunAmmo:
                                 case BackpackItem.TR3_ShotgunAmmo:
                                     ammoToAdd = 12 * backpackSlotCount.GetShort(); //its 2 shells for each pack, but *6 because memory is weird(i think cuz lara shoots 6 bullets per trigger pull, but w/e)
+                                    if (ammoToAdd == 0)
+                                        ammoToAdd = 12;
                                     break;
                                 case BackpackItem.TR1_MagnumAmmo:
                                 case BackpackItem.TR2_APAmmo:
                                     ammoToAdd = 25 * backpackSlotCount.GetShort();
+                                    if (ammoToAdd == 0)
+                                        ammoToAdd = 25;
                                     break;
                                 case BackpackItem.TR1_UziAmmo:
                                 case BackpackItem.TR2_UziAmmo:
                                 case BackpackItem.TR3_UziAmmo:
                                     ammoToAdd = 50 * backpackSlotCount.GetShort();
+                                    if (ammoToAdd == 0)
+                                        ammoToAdd = 50;
                                     break;
                                 case BackpackItem.TR3_DesertEagle:
                                     ammoToAdd = 7 * backpackSlotCount.GetShort();
+                                    if (ammoToAdd == 0)
+                                        ammoToAdd = 7;
                                     break;
                                 case BackpackItem.TR2_M16Ammo:
                                 case BackpackItem.TR3_MP5Ammo:
                                     ammoToAdd = 30 * backpackSlotCount.GetShort();
+                                    if (ammoToAdd == 0)
+                                        ammoToAdd = 30;
                                     break;
                                 case BackpackItem.TR2_HarpoonAmmo:
                                 case BackpackItem.TR3_HarpoonAmmo:
                                     ammoToAdd = 8 * backpackSlotCount.GetShort();
+                                    if (ammoToAdd == 0)
+                                        ammoToAdd = 8;
                                     break;
                                 case BackpackItem.TR2_GrenadeAmmo:
                                 case BackpackItem.TR3_GrenadeAmmo:
                                 case BackpackItem.TR3_RocketAmmo:
                                     ammoToAdd = 1 * backpackSlotCount.GetShort();
+                                    if (ammoToAdd == 0)
+                                        ammoToAdd = 2;
                                     break;
                             }
                             AdjustAmmoCount(ammoItem, (uint)ammoToAdd, true);
@@ -3085,7 +3100,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     });
                     break;
                 case GameEffect.forceMoveForward:
-                    if (GetGameState() == GameState.WrongMode || _forcingMovement)
+                    if (GetGameState() == GameState.WrongMode || _forcingMovement || LaraStateByte((CurrentGame)_lastReportedGame) != 0)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.WrongMode);
                         return;
@@ -3111,7 +3126,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     });
                     break;
                 case GameEffect.forceMoveBackward:
-                    if (GetGameState() == GameState.WrongMode || _forcingMovement)
+                    if (GetGameState() == GameState.WrongMode || _forcingMovement || LaraStateByte((CurrentGame)_lastReportedGame) != 0)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.WrongMode);
                         return;
@@ -3137,7 +3152,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     });
                     break;
                 case GameEffect.forceJump:
-                    if (GetGameState() == GameState.WrongMode || _forcingMovement)
+                    if (GetGameState() == GameState.WrongMode || _forcingMovement || LaraStateByte((CurrentGame)_lastReportedGame) != 0)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.WrongMode);
                         return;
@@ -3163,7 +3178,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     });
                     break;
                 case GameEffect.forceWalk:
-                    if (GetGameState() == GameState.WrongMode || _forcingMovement)
+                    if (GetGameState() == GameState.WrongMode || _forcingMovement || LaraStateByte((CurrentGame)_lastReportedGame) != 0)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.WrongMode);
                         return;
@@ -3189,7 +3204,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     });
                     break;
                 case GameEffect.forceSwanDive:
-                    if (GetGameState() == GameState.WrongMode || _forcingMovement)
+                    if (GetGameState() == GameState.WrongMode || _forcingMovement || LaraStateByte((CurrentGame)_lastReportedGame) != 0)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.WrongMode);
                         return;
@@ -3725,13 +3740,13 @@ namespace CrowdControl.Games.Packs.Tomb123
                     break;
 
                 case GameEffect.forceUnequip:
-                    if (GetGameState() == GameState.WrongMode)
+                    if (GetGameState() == GameState.WrongMode || _forcingUnequip)
                     {
                         DelayEffect(request, StandardErrors.BadGameState, GameState.BadPlayerState);
                         return;
                     }
                     SITimeSpan unequipDuration = request.Duration;
-                    RepeatAction(request,
+                    EffectState forceUnequipState = RepeatAction(request,
                         () => true,
                         () => Connector.SendMessage($"{request.DisplayViewer} forced Lara to unequip all weapons for {unequipDuration} seconds"),
                         TimeSpan.Zero,
@@ -3740,10 +3755,16 @@ namespace CrowdControl.Games.Packs.Tomb123
                         () =>
                         {
                             ForceEquip(currentGame, 0);
+                            _forcingUnequip = true;
                             return true;
                         },
                         TimeSpan.FromMilliseconds(100),
                         false);
+                    forceUnequipState.WhenCompleted.Then(() =>
+                    {
+                        ForceEquip(currentGame, 1);
+                        _forcingUnequip = false;
+                    });
                     break;
 
                 case GameEffect.giveLargeMedi:
@@ -3869,8 +3890,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, giveShotgunAmmoCount * 6, true), //+6 in memory == +1 shell
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveShotgunAmmoCount} shotgun shells to Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, giveShotgunAmmoCount * 12, true), //+6 in memory == +1 shell
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveShotgunAmmoCount * 2} shotgun shells to Lara's backpack"));
                     break;
 
                 case GameEffect.takeShotgunAmmo:
@@ -3893,8 +3914,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, takeShotgunAmmoCount * 6, false), //-6 in memory == -1 shell
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeShotgunAmmoCount} shotgun shells from Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, takeShotgunAmmoCount * 12, false), //-6 in memory == -1 shell
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeShotgunAmmoCount * 2} shotgun shells from Lara's backpack"));
                     break;
 
                 case GameEffect.giveUziAmmo:
@@ -3917,8 +3938,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, giveUziAmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveUziAmmoCount} Uzi bullets to Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, giveUziAmmoCount * 50, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveUziAmmoCount * 50} Uzi bullets to Lara's backpack"));
                     break;
 
                 case GameEffect.takeUziAmmo:
@@ -3941,8 +3962,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, takeUziAmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeUziAmmoCount} Uzi bullets from Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, takeUziAmmoCount * 50, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeUziAmmoCount * 50} Uzi bullets from Lara's backpack"));
                     break;
 
                 case GameEffect.tr1GiveMagnumAmmo:
@@ -3958,8 +3979,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR1_MagnumAmmo, giveMagnumAmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveMagnumAmmoCount} Magnum bullets to Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR1_MagnumAmmo, giveMagnumAmmoCount * 25, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveMagnumAmmoCount * 25} Magnum bullets to Lara's backpack"));
                     break;
 
                 case GameEffect.tr1TakeMagnumAmmo:
@@ -3975,8 +3996,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR1_MagnumAmmo, takeMagnumAmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeMagnumAmmoCount} Magnum bullets from Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR1_MagnumAmmo, takeMagnumAmmoCount * 25, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeMagnumAmmoCount * 25} Magnum bullets from Lara's backpack"));
                     break;
 
                 case GameEffect.giveAutoPistolAmmo:
@@ -3992,8 +4013,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR2_APAmmo, giveAutoPistolAmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveAutoPistolAmmoCount} Automatic Pistol bullets to Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR2_APAmmo, giveAutoPistolAmmoCount * 25, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveAutoPistolAmmoCount * 25} Automatic Pistol bullets to Lara's backpack"));
                     break;
 
                 case GameEffect.takeAutoPistolAmmo:
@@ -4009,8 +4030,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR2_APAmmo, takeAutoPistolAmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeAutoPistolAmmoCount} Automatic Pistol bullets from Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR2_APAmmo, takeAutoPistolAmmoCount * 25, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeAutoPistolAmmoCount * 25} Automatic Pistol bullets from Lara's backpack"));
                     break;
 
                 case GameEffect.giveM16Ammo:
@@ -4026,8 +4047,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR2_M16Ammo, giveM16AmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveM16AmmoCount} M16 bullets to Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR2_M16Ammo, giveM16AmmoCount * 30, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveM16AmmoCount * 30} M16 bullets to Lara's backpack"));
                     break;
 
                 case GameEffect.takeM16Ammo:
@@ -4043,8 +4064,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR2_M16Ammo, takeM16AmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeM16AmmoCount} M16 bullets from Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR2_M16Ammo, takeM16AmmoCount * 30, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeM16AmmoCount * 30} M16 bullets from Lara's backpack"));
                     break;
 
                 case GameEffect.giveMP5Ammo:
@@ -4060,8 +4081,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR3_MP5Ammo, giveMP5AmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveMP5AmmoCount} MP5 bullets to Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR3_MP5Ammo, giveMP5AmmoCount * 30, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveMP5AmmoCount * 30} MP5 bullets to Lara's backpack"));
                     break;
 
                 case GameEffect.takeMP5Ammo:
@@ -4077,8 +4098,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR3_MP5Ammo, takeMP5AmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeMP5AmmoCount} MP5 bullets from Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR3_MP5Ammo, takeMP5AmmoCount * 30, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeMP5AmmoCount * 30} MP5 bullets from Lara's backpack"));
                     break;
 
                 case GameEffect.giveDeagleAmmo:
@@ -4094,8 +4115,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR3_DesertEagleAmmo, giveDeagleAmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveDeagleAmmoCount} Desert Eagle bullets to Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR3_DesertEagleAmmo, giveDeagleAmmoCount * 7, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveDeagleAmmoCount * 7} Desert Eagle bullets to Lara's backpack"));
                     break;
 
                 case GameEffect.takeDeagleAmmo:
@@ -4111,8 +4132,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR3_DesertEagleAmmo, takeDeagleAmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeDeagleAmmoCount} Desert Eagle bullets from Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR3_DesertEagleAmmo, takeDeagleAmmoCount * 7, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeDeagleAmmoCount * 7} Desert Eagle bullets from Lara's backpack"));
                     break;
 
                 case GameEffect.giveRocketAmmo:
@@ -4128,8 +4149,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR3_RocketAmmo, giveRocketAmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveRocketAmmoCount} Rockets to Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR3_RocketAmmo, giveRocketAmmoCount * 2, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveRocketAmmoCount * 2} Rockets to Lara's backpack"));
                     break;
 
                 case GameEffect.takeRocketAmmo:
@@ -4145,8 +4166,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(BackpackItem.TR3_RocketAmmo, takeRocketAmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeRocketAmmoCount} Rockets from Lara's backpack"));
+                        () => AdjustAmmoCount(BackpackItem.TR3_RocketAmmo, takeRocketAmmoCount * 2, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeRocketAmmoCount * 2} Rockets from Lara's backpack"));
                     break;
 
                 case GameEffect.giveHarpoonAmmo:
@@ -4168,8 +4189,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     };
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, giveHarpoonAmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveHarpoonAmmoCount} Harpoons to Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, giveHarpoonAmmoCount * 4, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveHarpoonAmmoCount * 4} Harpoons to Lara's backpack"));
                     break;
 
                 case GameEffect.takeHarpoonAmmo:
@@ -4191,8 +4212,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     };
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, takeHarpoonAmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} took {takeHarpoonAmmoCount} Harpoons from Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, takeHarpoonAmmoCount * 4, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} took {takeHarpoonAmmoCount * 4} Harpoons from Lara's backpack"));
                     break;
 
                 case GameEffect.giveGrenadeAmmo:
@@ -4214,8 +4235,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     };
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, giveGrenadeAmmoCount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveGrenadeAmmoCount} Grenades to Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, giveGrenadeAmmoCount * 2, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} added {giveGrenadeAmmoCount * 2} Grenades to Lara's backpack"));
                     break;
 
                 case GameEffect.takeGrenadeAmmo:
@@ -4237,8 +4258,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     };
                     TryEffect(request,
                         () => true,
-                        () => AdjustAmmoCount(backpackItem, takeGrenadeAmmoCount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} took {takeGrenadeAmmoCount} Grenades from Lara's backpack"));
+                        () => AdjustAmmoCount(backpackItem, takeGrenadeAmmoCount * 2, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} took {takeGrenadeAmmoCount * 2} Grenades from Lara's backpack"));
                     break;
 
                 case GameEffect.giveO2:
@@ -4254,8 +4275,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustO2(currentGame, giveO2Count, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} put {giveO2Count} oxygen into Lara's lungs"));
+                        () => AdjustO2(currentGame, giveO2Count * 180, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} put {giveO2Count * 180} oxygen into Lara's lungs"));
                     break;
 
                 case GameEffect.takeO2:
@@ -4272,8 +4293,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustO2(currentGame, takeO2Count, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeO2Count} oxygen from Lara's lungs D:"));
+                        () => AdjustO2(currentGame, takeO2Count * 180, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} removed {takeO2Count * 180} oxygen from Lara's lungs D:"));
                     break;
 
                 case GameEffect.healLara:
@@ -4289,8 +4310,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustHP(currentGame, healAmount, true),
-                        () => Connector.SendMessage($"{request.DisplayViewer} gave Lara {healAmount} HP"));
+                        () => AdjustHP(currentGame, healAmount * 100, true),
+                        () => Connector.SendMessage($"{request.DisplayViewer} gave Lara {healAmount * 100} HP"));
                     break;
 
                 case GameEffect.hurtLara:
@@ -4306,8 +4327,8 @@ namespace CrowdControl.Games.Packs.Tomb123
                     }
                     TryEffect(request,
                         () => true,
-                        () => AdjustHP(currentGame, hurtAmount, false),
-                        () => Connector.SendMessage($"{request.DisplayViewer} hurt Lara for {hurtAmount} HP"));
+                        () => AdjustHP(currentGame, hurtAmount * 100, false),
+                        () => Connector.SendMessage($"{request.DisplayViewer} hurt Lara for {hurtAmount * 100} HP"));
                     break;
 
                 case GameEffect.invisibleLara:
@@ -4440,6 +4461,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                         Respond(request, EffectStatus.FailTemporary, StandardErrors.CannotParseNumber, codeParams[1]);
                         break;
                     }
+                    increaseMaxHPAmount *= 100;
                     TryEffect(request,
                         () => true,
                         () => AdjustMaxHP(currentGame, increaseMaxHPAmount, true),
@@ -4457,6 +4479,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                         Respond(request, EffectStatus.FailTemporary, StandardErrors.CannotParseNumber, codeParams[1]);
                         break;
                     }
+                    decreaseMaxHPAmount *= 100;
                     TryEffect(request,
                         () => true,
                         () => AdjustMaxHP(currentGame, decreaseMaxHPAmount, false),
@@ -4474,6 +4497,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                         Respond(request, EffectStatus.FailTemporary, StandardErrors.CannotParseNumber, codeParams[1]);
                         break;
                     }
+                    increaseMaxO2Amount *= 180;
                     TryEffect(request,
                         () => true,
                         () => AdjustMaxO2(currentGame, increaseMaxO2Amount, true),
@@ -4491,6 +4515,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                         Respond(request, EffectStatus.FailTemporary, StandardErrors.CannotParseNumber, codeParams[1]);
                         break;
                     }
+                    decreaseMaxO2Amount *= 180;
                     TryEffect(request,
                         () => true,
                         () => AdjustMaxO2(currentGame, decreaseMaxO2Amount, false),
@@ -5126,6 +5151,36 @@ namespace CrowdControl.Games.Packs.Tomb123
         private bool IsPausedOrMenu()
         {
             bool success = AddressChain.Parse(Connector, $"{_mainGame}+{_tr123InMenuBoolean:X}").TryGetByte(out byte menuState);
+            if (!success)
+                return false;
+            Log.Debug($"Menu state is: {menuState}");
+            if (menuState == 0)
+                return false;
+            return true;
+        }
+
+        private bool IsLevelCompleteScreen()
+        {
+            string currentGame;
+            uint levelCompletedFlag;
+            switch (_lastReportedGame)
+            {
+                case CurrentGame.TR1:
+                    currentGame = _tomb1Dll;
+                    levelCompletedFlag = _tr1LevelCompletedFlagOffset;
+                    break;
+                case CurrentGame.TR2:
+                    currentGame = _tomb2Dll;
+                    levelCompletedFlag = _tr2LevelCompletedFlagOffset;
+                    break;
+                case CurrentGame.TR3:
+                    currentGame = _tomb3Dll;
+                    levelCompletedFlag = _tr3LevelCompletedFlagOffset;
+                    break;
+                default:
+                    return true;
+            }
+            bool success = AddressChain.Parse(Connector, $"{currentGame}+{levelCompletedFlag:X}").TryGetByte(out byte menuState);
             if (!success)
                 return false;
             Log.Debug($"Menu state is: {menuState}");
