@@ -160,13 +160,13 @@ namespace CrowdControl.Games.Packs.Tomb123
         };
 
         #region Global Values
-        private const uint _currentGameOffset = 0x2F35F0;
-        private const uint _tr123GraphicsAndControlOffset = 0x2641C4;
-        private const uint _tr123OutfitOffset = 0x263CD8; //1 -> 14 (Classic 1, Training 1, Classic 2, Training 2, Wetsuit, Bomber, Bathrobe, Training 3, Nevada, Pacific, Catsuit, Antarctica, Bloody Classic, Vegas
-        private const uint _tr123SunniesOffset = 0x263CE4;
-        private const uint _tr123InMenuBoolean = 0x264040; //0 is good, 1 is in menu
-        private const uint _tr123GameStateSppt = 0x2073C43; //67 is good, anything else is not
-        private const uint _tr123MovementByte = 0x2639D4;
+        private const uint _currentGameOffset = 0x418024;//0x2F35F0;
+        private const uint _tr123GraphicsAndControlOffset = 0x388AC4;//0x2641C4;
+        private const uint _tr123OutfitOffset = 0x3885C0; //0x263CD8 + 0x1248E8; //1 -> 14 (Classic 1, Training 1, Classic 2, Training 2, Wetsuit, Bomber, Bathrobe, Training 3, Nevada, Pacific, Catsuit, Antarctica, Bloody Classic, Vegas
+        private const uint _tr123SunniesOffset = 0x263CE4 + 0x1248E8;
+        private const uint _tr123InMenuBoolean = 0x264040 + 0x1248E8; //0 is good, 1 is in menu
+        private const uint _tr123GameStateSppt = 0x2073C43 + 0x1248E8; //67 is good, anything else is not
+        private const uint _tr123MovementByte = 0x2639D4 + 0x125380;
         private const uint _laraHealthOffset = 0x26;
         private const uint _laraVisibilityOffset = 0xC; //(works perfect for 1, but for 2 and 3 it does not hide her hair)
         private const uint _laraLightingOffset = 0x2F; //(works perfect for 1 and 2, but does not work for 3)
@@ -178,14 +178,16 @@ namespace CrowdControl.Games.Packs.Tomb123
         private uint _maxHP = 1000;
         private bool _laraIsPoisoned = false;
         private uint _hpBeforePoison = uint.MaxValue;
-        #endregion
+        #endregion //Updated for update 5
 
         #region TR1 Values
-        private const uint _tr1BackpackSizeOffset = 0xE2ABC;
-        private const uint _tr1BackpackSlotCountsOffset = 0xF8DD8;
+        private const uint _tr1BackpackSizeOffset = 0xE2ABC + 0x1C000;
+        private const uint _tr1BackpackSlotCountsOffset = 0xF8DD8 + 0x1C000;
         private readonly List<uint> _tr1BackpackSlotOffsets =
         [
-            0xF8D20,0xF8D28,0xF8D30,0xF8D38,0xF8D40,0xF8D48,0xF8D50
+            0xF8D20 + 0x1BFF0, 0xF8D28 + 0x1BFF0, 0xF8D30 + 0x1BFF0,
+            0xF8D38 + 0x1BFF0, 0xF8D40 + 0x1BFF0, 0xF8D48 + 0x1BFF0,
+            0xF8D50 + 0x1BFF0
         ];
         private readonly List<BackpackItem> _tr1BackpackItemsWithAmmo =
         [
@@ -196,34 +198,36 @@ namespace CrowdControl.Games.Packs.Tomb123
             BackpackItem.TR1_Compass, BackpackItem.TR1_Pistols, BackpackItem.TR1_Shotgun, BackpackItem.TR1_Magnums,
             BackpackItem.TR1_Uzis, BackpackItem.TR1_LargeMedi, BackpackItem.TR1_SmallMedi
         ];
-        private const uint _tr1MagnumAmmoOffset = 0x310FC8;
-        private const uint _tr1UziAmmoOffset = 0x310FD0;
-        private const uint _tr1ShotgunAmmoOffset = 0x310FD8;
-        private const uint _tr1LaraOffset = 0x311030;
-        private const uint _tr1OxygenOffset = 0x310E96;
-        private const uint _tr1EquippedWeapon = 0x310E86;
-        private const uint _tr1LaraStateByte = 0x310E8C;
-        private const uint _tr1RoomCountOffset = 0x3F2030;
-        private const uint _tr1RoomPtrOffset = 0x3F2168;
+        private const uint _tr1MagnumAmmoOffset = 0x310FC8 + 0x259C0;
+        private const uint _tr1UziAmmoOffset = 0x310FD0 + 0x259C0;
+        private const uint _tr1ShotgunAmmoOffset = 0x310FD8 + 0x259C0;
+        private const uint _tr1LaraOffset = 0x311030 + 0x259C0;
+        private const uint _tr1OxygenOffset = 0x310E96 + 0x259C0;
+        private const uint _tr1EquippedWeapon = 0x310E86 + 0x259C0;
+        private const uint _tr1LaraStateByte = 0x310E8C + 0x259C0;
+        private const uint _tr1RoomCountOffset = 0x418650; //updated
+        private const uint _tr1RoomPtrOffset = 0x418788; //0x3F2168
         private Dictionary<int, byte> _floodedRoomStateOriginal = [];
         private List<OffsetAddressChain<InjectConnector>> tr1MaxHPDeclarations = [];
-        private const uint _tr1MaxO2Offset = 0x27B94;
-        private const uint _tr1PistolDamageOffset = 0xF9700;
-        private const uint _tr1MagnumDamageOffset = 0xF9730;
-        private const uint _tr1UziDamageOffset = 0xF9760;
-        private const uint _tr1ShotgunDamageOffset = 0xF9790;
-        private const uint _tr1FallDamageOffset = 0x24BCD;
-        private const uint _tr1LevelCompletedFlagOffset = 0xFD750;
-        private const uint _tr1CurrentLevelOffset = 0xE2AB8;
-        #endregion
+        private const uint _tr1MaxO2Offset = 0x27B94 + 0x172B;
+        private const uint _tr1PistolDamageOffset = 0xF9700 + 0x1BFE0;
+        private const uint _tr1MagnumDamageOffset = 0xF9730 + 0x1BFE0;
+        private const uint _tr1UziDamageOffset = 0xF9760 + 0x1BFE0;
+        private const uint _tr1ShotgunDamageOffset = 0xF9790 + 0x1BFE0;
+        private const uint _tr1FallDamageOffset = 0x261A0;
+        private const uint _tr1LevelCompletedFlagOffset = 0xFD750 + 0x21A54; //? should be +11AF50+4254
+        private const uint _tr1CurrentLevelOffset = 0xE2AB8 + 0x1C000;
+        #endregion //Updated for update 5
 
         #region TR2 Values
-        private const uint _tr2BackpackSizeOffset = 0x113EDC;
-        private const uint _tr2BackpackSlotCountsOffset = 0x12E698;
+        private const uint _tr2BackpackSizeOffset = 0x113EDC + 0x24000;
+        private const uint _tr2BackpackSlotCountsOffset = 0x12E698 + 0x24010;
         private readonly List<uint> _tr2BackpackSlotOffsets =
         [
-            0x12E5E0,0x12E5E8,0x12E5F0,0x12E5F8,0x12E600,0x12E608,
-            0x12E610,0x12E618,0x12E620,0x12E628,0x12E630
+            0x12E5E0 + 0x24010, 0x12E5E8 + 0x24010, 0x12E5F0 + 0x24010,
+            0x12E5F8 + 0x24010, 0x12E600 + 0x24010, 0x12E608 + 0x24010,
+            0x12E610 + 0x24010, 0x12E618 + 0x24010, 0x12E620 + 0x24010,
+            0x12E628 + 0x24010, 0x12E630 + 0x24010
         ];
         private readonly List<BackpackItem> _tr2BackpackItemsWithAmmo =
         [
@@ -236,40 +240,42 @@ namespace CrowdControl.Games.Packs.Tomb123
             BackpackItem.TR2_Uzis, BackpackItem.TR2_M16, BackpackItem.TR2_GrenadeLauncher, BackpackItem.TR2_HarpoonGun,
             BackpackItem.TR2_Flares, BackpackItem.TR2_LargeMedi, BackpackItem.TR2_SmallMedi
         ];
-        private const uint _tr2AutomaticPistolsAmmoOffset = 0x346108;
-        private const uint _tr2UziAmmoOffset = 0x346110;
-        private const uint _tr2ShotgunAmmoOffset = 0x346118;
-        private const uint _tr2HarpoonGunAmmoOffset = 0x346120;
-        private const uint _tr2GrenadeLauncherAmmoOffset = 0x346128;
-        private const uint _tr2M16AmmoOffset = 0x346138;
-        private const uint _tr2EquippedWeapon = 0x345FC6; //345FC8 controls what you take out when you unholster?
-        private const uint _tr2LaraStateByte = 0x345FCC;
-        private const uint _tr2RoomCountOffset = 0x3FD1B0;
-        private const uint _tr2RoomPtrOffset = 0x427360;
-        private const uint _tr2LaraOffset = 0x346170;
-        private const uint _tr2OxygenOffset = 0x345FD6;
-        private const uint _tr2PistolDamageOffset = 0x12EA30;
-        private const uint _tr2AutomaticPistolsDamageOffset = 0x12EA60;
-        private const uint _tr2UziDamageOffset = 0x12EA90;
-        private const uint _tr2ShotgunDamageOffset = 0x12EAC0;
-        private const uint _tr2HarpoonGunDamageOffset = 0x12EB50;
-        private const uint _tr2GrenadeLauncherDamageOffset = 0x12EB20; //doesnt work
-        private const uint _tr2M16DamageOffset = 0x12EAF0;
-        private const uint _tr2FallDamageOffset = 0x43D99;
-        private const uint _tr2LevelCompletedFlagOffset = 0x1330B8;
-        private const uint _tr2CurrentLevelOffset = 0x132B58;
+        private const uint _tr2AutomaticPistolsAmmoOffset = 0x346108 + 0x2D9C0;
+        private const uint _tr2UziAmmoOffset = 0x346110 + 0x2D9C0;
+        private const uint _tr2ShotgunAmmoOffset = 0x346118 + 0x2D9C0;
+        private const uint _tr2HarpoonGunAmmoOffset = 0x346120 + 0x2D9C0;
+        private const uint _tr2GrenadeLauncherAmmoOffset = 0x346128 + 0x2D9C0;
+        private const uint _tr2M16AmmoOffset = 0x346138 + 0x2D9C0;
+        private const uint _tr2EquippedWeapon = 0x345FC6 + 0x2D9C0; //345FC8 controls what you take out when you unholster?
+        private const uint _tr2LaraStateByte = 0x345FCC + 0x2D9C0;
+        private const uint _tr2RoomCountOffset = 0x3FD1B0 + 0x2E620;
+        private const uint _tr2RoomPtrOffset = 0x427360 + 0x2E620;
+        private const uint _tr2LaraOffset = 0x346170 + 0x2D9C0;
+        private const uint _tr2OxygenOffset = 0x345FD6 + 0x2D9C0;
+        private const uint _tr2PistolDamageOffset = 0x12EA30 + 0x24010;
+        private const uint _tr2AutomaticPistolsDamageOffset = 0x12EA60 + 0x24010;
+        private const uint _tr2UziDamageOffset = 0x12EA90 + 0x24010;
+        private const uint _tr2ShotgunDamageOffset = 0x12EAC0 + 0x24010;
+        private const uint _tr2HarpoonGunDamageOffset = 0x12EB50 + 0x24010;
+        private const uint _tr2GrenadeLauncherDamageOffset = 0x12EB20 + 0x24010; //doesnt work
+        private const uint _tr2M16DamageOffset = 0x12EAF0 + 0x24010;
+        private const uint _tr2FallDamageOffset = 0x43D99 + 0x1E2D;
+        private const uint _tr2LevelCompletedFlagOffset = 0x1330B8 + 0x29ABC;
+        private const uint _tr2CurrentLevelOffset = 0x132B58 + 0x24610;
         private List<OffsetAddressChain<InjectConnector>> tr2MaxHPDeclarations = [];
-        private const uint _tr2InitialMaxO2Offset = 0x5167C;
-        private const uint _tr2RegainedMaxO2Offset = 0x5146B;
-        #endregion
+        private const uint _tr2InitialMaxO2Offset = 0x5167C + 0x1F27;
+        private const uint _tr2RegainedMaxO2Offset = 0x5146B + 0x1F6F;
+        #endregion //should be up to date for update 5 now
 
         #region TR3 Values
-        private const uint _tr3BackpackSizeOffset = 0x1693E8;
-        private const uint _tr3BackpackSlotCountsOffset = 0x1899D8;
+        private const uint _tr3BackpackSizeOffset = 0x1693E8 + 0x25010;
+        private const uint _tr3BackpackSlotCountsOffset = 0x1899D8 + 0x25010;
         private readonly List<uint> _tr3BackpackSlotOffsets =
         [
-            0x189920,0x189928,0x189930,0x189938,0x189940,0x189948,
-            0x189950,0x189958,0x189960,0x189968,0x189970,0x189978
+            0x189920 + 0x25010, 0x189928 + 0x25010, 0x189930 + 0x25010,
+            0x189938 + 0x25010, 0x189940 + 0x25010, 0x189948 + 0x25010,
+            0x189950 + 0x25010, 0x189958 + 0x25010, 0x189960 + 0x25010,
+            0x189968 + 0x25010, 0x189970 + 0x25010, 0x189978 + 0x25010
         ];
         private readonly List<BackpackItem> _tr3BackpackItemsWithAmmo =
         [
@@ -283,37 +289,37 @@ namespace CrowdControl.Games.Packs.Tomb123
             BackpackItem.TR3_Uzis, BackpackItem.TR3_MP5, BackpackItem.TR3_RocketLauncher, BackpackItem.TR3_GrenadeLauncher,
             BackpackItem.TR3_HarpoonGun, BackpackItem.TR3_Flares, BackpackItem.TR3_LargeMedi, BackpackItem.TR3_SmallMedi
         ];
-        private const uint _tr3DeagleAmmoOffset = 0x3A2008;
-        private const uint _tr3UziAmmoOffset = 0x3A2010;
-        private const uint _tr3ShotgunAmmoOffset = 0x3A2018;
-        private const uint _tr3HarpoonGunAmmoOffset = 0x3A2020;
-        private const uint _tr3RocketLauncherAmmoOffset = 0x3A2028;
-        private const uint _tr3GrenadeLauncherAmmoOffset = 0x3A2030;
-        private const uint _tr3MP5AmmoOffset = 0x3A2038;
-        private const uint _tr3EquippedWeapon = 0x3A1EC4;
-        private const uint _tr3LaraStateByte = 0x3A1ECC;
-        private const uint _tr3RoomCountOffset = 0x460290;
-        private const uint _tr3RoomPtrOffset = 0x461140;
-        private const uint _tr3LaraOffset = 0x3A2070;
-        private const uint _tr3OxygenOffset = 0x3A1ED6;
-        private const uint _tr3PistolDamageOffset = 0x189DA6;
-        private const uint _tr3DeagleDamageOffset = 0x189DCC;
-        private const uint _tr3UziDamageOffset = 0x189DF2;
-        private const uint _tr3ShotgunDamageOffset = 0x189E18;
-        private const uint _tr3MP5DamageOffset = 0x189E3E;
-        private const uint _tr3RocketLauncherDamageOffset = 0x189E64; //doesnt work
-        private const uint _tr3GrenadeLauncherDamageOffset = 0x189E8A; //doesnt work
-        private const uint _tr3HarpoonGunDamageOffset = 0x189EB0;
-        private const uint _tr3FallDamageOffset = 0x5FDC7;
-        private const uint _tr3LevelCompletedFlagOffset = 0x18E690;
-        private const uint _tr3CurrentLevelOffset = 0x18E16C;
+        private const uint _tr3DeagleAmmoOffset = 0x3A2008 + 0x2E9E0;
+        private const uint _tr3UziAmmoOffset = 0x3A2010 + 0x2E9E0;
+        private const uint _tr3ShotgunAmmoOffset = 0x3A2018 + 0x2E9E0;
+        private const uint _tr3HarpoonGunAmmoOffset = 0x3A2020 + 0x2E9E0;
+        private const uint _tr3RocketLauncherAmmoOffset = 0x3A2028 + 0x2E9E0;
+        private const uint _tr3GrenadeLauncherAmmoOffset = 0x3A2030 + 0x2E9E0;
+        private const uint _tr3MP5AmmoOffset = 0x3A2038 + 0x2E9E0;
+        private const uint _tr3EquippedWeapon = 0x3A1EC4 + 0x2E9E2;
+        private const uint _tr3LaraStateByte = 0x3A1ECC + 0x2E9E0;
+        private const uint _tr3RoomCountOffset = 0x460290 + 0x2F640;
+        private const uint _tr3RoomPtrOffset = 0x461140 + 0x2F640;
+        private const uint _tr3LaraOffset = 0x3A2070 + 0x2E9E0;
+        private const uint _tr3OxygenOffset = 0x3A1ED6 + 0x2E9E0;
+        private const uint _tr3PistolDamageOffset = 0x189DA6 + 0x25010;
+        private const uint _tr3DeagleDamageOffset = 0x189DCC + 0x25010;
+        private const uint _tr3UziDamageOffset = 0x189DF2 + 0x25010;
+        private const uint _tr3ShotgunDamageOffset = 0x189E18 + 0x25010;
+        private const uint _tr3MP5DamageOffset = 0x189E3E + 0x25010;
+        private const uint _tr3RocketLauncherDamageOffset = 0x189E64 + 0x25010; //doesnt work
+        private const uint _tr3GrenadeLauncherDamageOffset = 0x189E8A + 0x25010; //doesnt work
+        private const uint _tr3HarpoonGunDamageOffset = 0x189EB0 + 0x25010;
+        private const uint _tr3FallDamageOffset = 0x5FDC7 + 0x1CE9;
+        private const uint _tr3LevelCompletedFlagOffset = 0x18E690 + 0x2AACC;
+        private const uint _tr3CurrentLevelOffset = 0x18E16C + 0x25600;
         private List<OffsetAddressChain<InjectConnector>> tr3MaxHPDeclarations = [];
-        private const uint _tr3InitialMaxO2Offset = 0x7457A;
-        private const uint _tr3RegainedMaxO2Offset = 0x747B4;
-        private const uint _tr3MaxStaminaOffset = 0x741DB;
-        private const uint _tr3CurrentStaminaOffset = 0x3A1EF4;
-        private const uint _tr3TemperatureOffset = 0x3A1EF6;
-        private const uint _tr3MaxTemperatureOffset = 0x74A76;
+        //private const uint _tr3InitialMaxO2Offset = 0x7457A + 0x236F;
+        private const uint _tr3RegainedMaxO2Offset = 0x747B4 + 0x2135; //Simplified in update 5, only one needed?
+        private const uint _tr3MaxStaminaOffset = 0x741DB + 0x1FD0;
+        private const uint _tr3CurrentStaminaOffset = 0x3A1EF4 + 0x2E9E0;
+        private const uint _tr3TemperatureOffset = 0x3A1EF6 + 0x2E9E0;
+        private const uint _tr3MaxTemperatureOffset = 0x74A76; //seems to be deleted from Update 5, but we don't use this anyways
         private const byte _defaultMaxStamina = 0x78;
         #endregion
 
@@ -623,54 +629,55 @@ namespace CrowdControl.Games.Packs.Tomb123
             TR3 = 2
         }
 
-        private enum BackpackItem
+        private enum BackpackItem //TODO: update all of these haHAA
         {
-            TR1_Compass = 0xF1940,
-            TR1_Pistols = 0xECC60,
-            TR1_Shotgun = 0xED930,
-            TR1_Magnums = 0xF6620,
-            TR1_Uzis = 0xF3FB0,
-            TR1_LargeMedi = 0xEB2C0,
-            TR1_SmallMedi = 0xE7F80,
-            TR1_ShotgunAmmo = 0xE65E0, //1 pickup = 2 shells [TR1]
-            TR1_MagnumAmmo = 0xEFFA0, //1 pickup = 25 bullets 
-            TR1_UziAmmo = 0xF4C80, //1 pickup = 50 bullets [TR1]
-            TR2_Compass = 0x126110,
-            TR2_Pistols = 0x121430,
-            TR2_Shotgun = 0x122DD0,
-            TR2_GrenadeLauncher = 0x1160D0,
-            TR2_AutomaticPistols = 0x12BF00,
-            TR2_Uzis = 0x128BC0,
-            TR2_M16 = 0x11EDC0,
-            TR2_HarpoonGun = 0x119410,
-            TR2_Flares = 0x12B230,
-            TR2_LargeMedi = 0x11E0F0,
-            TR2_SmallMedi = 0x11A0E0,
-            TR2_ShotgunAmmo = 0x117A70,
-            TR2_APAmmo = 0x124770,
-            TR2_UziAmmo = 0x129890,
-            TR2_M16Ammo = 0x11D420,
-            TR2_GrenadeAmmo = 0x120760,
-            TR2_HarpoonAmmo = 0x122100,
-            TR3_Compass = 0x17FAB0,
-            TR3_Pistols = 0x177A90,
-            TR3_Shotgun = 0x17ADD0,
-            TR3_DesertEagle = 0x186570,
-            TR3_Uzis = 0x182560,
-            TR3_MP5 = 0x175420,
-            TR3_RocketLauncher = 0x16AD90,
-            TR3_GrenadeLauncher = 0x184BD0,
-            TR3_HarpoonGun = 0x16FA70,
-            TR3_Flares = 0x1858A0,
-            TR3_LargeMedi = 0x174750,
-            TR3_SmallMedi = 0x170740,
-            TR3_ShotgunAmmo = 0x16E0D0,
-            TR3_DesertEagleAmmo = 0x17E110,
-            TR3_UziAmmo = 0x183230,
-            TR3_MP5Ammo = 0x173A80,
-            TR3_RocketAmmo = 0x176DC0,
-            TR3_GrenadeAmmo = 0x17C770,
-            TR3_HarpoonAmmo = 0x179430
+            //Found through finding it in backpack, getting memory value associated and subtracting it from tomb#.dll base
+            TR1_Compass = 0x10D940, //0xF1940, (+1C000)
+            TR1_Pistols = 0x108C60, //0xECC60,
+            TR1_Shotgun = 0x109930, //0xED930,
+            TR1_Magnums = 0x112620, //0xF6620,
+            TR1_Uzis = 0x10FFB0, //0xF3FB0,
+            TR1_LargeMedi = 0x1072C0, //0xEB2C0,
+            TR1_SmallMedi = 0x103F80, //0xE7F80,
+            TR1_ShotgunAmmo = 0x1025E0, //0xE65E0, //1 pickup = 2 shells [TR1]
+            TR1_MagnumAmmo = 0x10BFA0, //0xEFFA0, //1 pickup = 25 bullets 
+            TR1_UziAmmo = 0x110C80, //0xF4C80, //1 pickup = 50 bullets [TR1]
+            TR2_Compass = 0x126110 + 0x24010, //TODO: verify TR2 values, i am assuming it off of just the one calculation here :/
+            TR2_Pistols = 0x121430 + 0x24010,
+            TR2_Shotgun = 0x122DD0 + 0x24010,
+            TR2_GrenadeLauncher = 0x1160D0 + 0x24010,
+            TR2_AutomaticPistols = 0x12BF00 + 0x24010,
+            TR2_Uzis = 0x128BC0 + 0x24010,
+            TR2_M16 = 0x11EDC0 + 0x24010,
+            TR2_HarpoonGun = 0x119410 + 0x24010,
+            TR2_Flares = 0x12B230 + 0x24010,
+            TR2_LargeMedi = 0x11E0F0 + 0x24010,
+            TR2_SmallMedi = 0x11A0E0 + 0x24010,
+            TR2_ShotgunAmmo = 0x117A70 + 0x24010,
+            TR2_APAmmo = 0x124770 + 0x24010,
+            TR2_UziAmmo = 0x129890 + 0x24010,
+            TR2_M16Ammo = 0x11D420 + 0x24010,
+            TR2_GrenadeAmmo = 0x120760 + 0x24010,
+            TR2_HarpoonAmmo = 0x122100 + 0x24010,
+            TR3_Compass = 0x17FAB0 + 0x25010, //1A4AC0
+            TR3_Pistols = 0x177A90 + 0x25010,
+            TR3_Shotgun = 0x17ADD0 + 0x25010,
+            TR3_DesertEagle = 0x186570 + 0x25010,
+            TR3_Uzis = 0x182560 + 0x25010,
+            TR3_MP5 = 0x175420 + 0x25010,
+            TR3_RocketLauncher = 0x16AD90 + 0x25010,
+            TR3_GrenadeLauncher = 0x184BD0 + 0x25010,
+            TR3_HarpoonGun = 0x16FA70 + 0x25010,
+            TR3_Flares = 0x1858A0 + 0x25010,
+            TR3_LargeMedi = 0x174750 + 0x25010,
+            TR3_SmallMedi = 0x170740 + 0x25010,
+            TR3_ShotgunAmmo = 0x16E0D0 + 0x25010,
+            TR3_DesertEagleAmmo = 0x17E110 + 0x25010,
+            TR3_UziAmmo = 0x183230 + 0x25010,
+            TR3_MP5Ammo = 0x173A80 + 0x25010,
+            TR3_RocketAmmo = 0x176DC0 + 0x25010,
+            TR3_GrenadeAmmo = 0x17C770 + 0x25010,
+            TR3_HarpoonAmmo = 0x179430 + 0x25010
         }
 
         private CurrentGame DetermineCurrentGame()
@@ -2397,7 +2404,8 @@ namespace CrowdControl.Games.Packs.Tomb123
             {
                 CurrentGame.TR1 => AddressChain.Parse(Connector, $"{_tomb1Dll}+{_tr1MaxO2Offset:X}").GetShort(),
                 CurrentGame.TR2 => AddressChain.Parse(Connector, $"{_tomb2Dll}+{_tr2InitialMaxO2Offset:X}").GetShort(),
-                CurrentGame.TR3 => AddressChain.Parse(Connector, $"{_tomb3Dll}+{_tr3InitialMaxO2Offset:X}").GetShort(),
+                //CurrentGame.TR3 => AddressChain.Parse(Connector, $"{_tomb3Dll}+{_tr3InitialMaxO2Offset:X}").GetShort(),
+                CurrentGame.TR3 => AddressChain.Parse(Connector, $"{_tomb3Dll}+{_tr3RegainedMaxO2Offset:X}").GetShort(),
                 _ => throw new Exception("Invalid hooked game detected"),
             };
         }
@@ -2459,7 +2467,7 @@ namespace CrowdControl.Games.Packs.Tomb123
                     return false;
                 case CurrentGame.TR3:
                     currentMaxO2 = GetCurrentMaxO2(currentGame);
-                    if (AddressChain.Parse(Connector, $"{_tomb3Dll}+{_tr3InitialMaxO2Offset:X}").TrySetShort(maxO2))
+                    //if (AddressChain.Parse(Connector, $"{_tomb3Dll}+{_tr3InitialMaxO2Offset:X}").TrySetShort(maxO2))
                         return AddressChain.Parse(Connector, $"{_tomb3Dll}+{_tr3RegainedMaxO2Offset:X}").TrySetShort(maxO2);
                     return false;
             }
@@ -2921,12 +2929,12 @@ namespace CrowdControl.Games.Packs.Tomb123
             if (increase == true)
             {
                 _affectingFallDamage = true;
-                return SetFallDamage(currentGame, 12);
+                return SetFallDamage(currentGame, 5);
             }
             else if (increase == false)
             {
                 _affectingFallDamage = true;
-                return SetFallDamage(currentGame, 3);
+                return SetFallDamage(currentGame, 7);
             }
             else
             {
