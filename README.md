@@ -4,6 +4,12 @@ This folder contains the C# Crowd Control pack definition for **Tomb Raider I–
 
 ## Connector and setup
 
+## Pack metadata
+
+- **Game:** Tomb Raider I–III Remastered
+- **Crowd Control game ID:** `Tomb123`
+- **Connector:** `InjectConnector`
+
 `Tomb123.cs` selects `InjectConnector` and has a `Tomb123` version profile. Start the supported executable before testing; no installer is included.
 
 ## Layout
